@@ -11,7 +11,10 @@ prompt_responses
 .. image:: https://codecov.io/gh/graup/django-prompt-responses/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/graup/django-prompt-responses
 
-A flexible prompt and user responses data schema utilizing the generic content types
+A flexible prompt and user responses data schema utilizing the generic content types.
+
+This app was born during a research project. The main use case is data collection.
+It lets you create numerous kinds of "prompts" (e.g. questions or tasks) and record user responses.
 
 Documentation
 -------------
@@ -34,19 +37,6 @@ Add it to your `INSTALLED_APPS`:
         'prompt_responses.apps.PromptResponsesConfig',
         ...
     )
-
-Add prompt_responses's URL patterns:
-
-.. code-block:: python
-
-    from prompt_responses import urls as prompt_responses_urls
-
-
-    urlpatterns = [
-        ...
-        url(r'^', include(prompt_responses_urls)),
-        ...
-    ]
 
 Features
 --------

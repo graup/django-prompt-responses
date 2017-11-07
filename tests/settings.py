@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sites",
     "prompt_responses",
+    "tests"
 ]
 
 SITE_ID = 1

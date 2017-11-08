@@ -70,6 +70,11 @@ class Prompt(models.Model):
         return cls.objects.create(**kwargs)
 
     class Instance(object):
+        """
+        An instance of a prompt to be rendered by UI.
+        It has `object` and `response_objects` that can be populated into the `prompt`.
+        `str(instance)` returns the prompt text with the inserted `object`.
+        """
         def __init__(self, prompt, obj, response_objects=None):
             self.prompt = prompt
             self.object = obj
@@ -101,10 +106,14 @@ class Prompt(models.Model):
 
     def get_instance(self):
         """Creates a single instance of this prompt with populated object"""
-        obj = self.get_prompt_object()
+        obj = None
         response_objects = None
-        if self.type == self.TYPES.tagging:
+
+        if self.prompt_object_type:
+            obj = self.get_prompt_object()
+        if self.type == self.TYPES.tagging and self.response_object_type:
             response_objects = self.get_response_objects()
+
         return self.__class__.Instance(self, obj, response_objects)
 
     @transaction.atomic
@@ -191,9 +200,9 @@ class Prompt(models.Model):
         Get mean ratings for all response_objects of all prompt_objects
         Returns a matrix in the form of a two-level dict
         {object1: {object2: 1}}, ...
-        Note that object keys are of the form content_type_id + '_' + object_id.
-        Refer to Django's contenttypes documentation to convert them back to model instances,
-        e.g. ContentTypes.objects.get_for_id(content_type_id).get_object_for_this_type(pk=object_id)
+        Refer to Django's contenttypes documentation to convert the keys back to model instances,
+        e.g. prompt.response_object_type.get_object_for_this_type(pk=object1)
+        or prompt.prompt_object_type.get_object_for_this_type(pk=object2)
         """
         # SELECT AVG(tags__rating) WHERE prompt_id=... GROUP BY prompt_object, response_object
         q = Tag.objects.values(
@@ -204,8 +213,10 @@ class Prompt(models.Model):
         # Convert rows into matrix
         matrix = defaultdict(dict)
         for row in q.all():
-            right_key = '%d_%d' % (row['content_type'], row['object_id'])
-            left_key = '%d_%d' % (row['response__content_type'], row['response__object_id'])
+            #right_key = '%d_%d' % (row['content_type'], row['object_id'])
+            right_key = row['object_id']
+            #left_key = '%d_%d' % (row['response__content_type'], row['response__object_id'])
+            left_key = row['response__object_id']
             matrix[left_key][right_key] = row['average_rating']
         
         return dict(matrix)
@@ -218,7 +229,8 @@ class Prompt(models.Model):
         # SELECT AVG(tags__rating) WHERE prompt_object=... AND prompt_id=... GROUP BY response_object
         q = self.responses
 
-        q = q.values(response_object_id=F('tags__object_id')).filter(
+        # .values(response_object_id=F('tags__object_id'))
+        q = q.annotate(response_object_id=F('tags__object_id')).values('response_object_id').filter(
             object_id=prompt_object.id, content_type=ContentType.objects.get_for_model(prompt_object),
         )
         q = q.annotate(average_rating=Avg('tags__rating'))

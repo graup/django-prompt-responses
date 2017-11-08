@@ -32,6 +32,7 @@ class TestPrompt_responses(TestCase):
         )
         instance = prompt.get_instance()
         self.assertEqual(str(instance), 'How do you like the book Two Scoops of Django?')
+        self.assertEqual(str(prompt), 'How do you like the book {object}?')
 
         response = prompt.create_response(
             user=self.user2,
@@ -64,6 +65,29 @@ class TestPrompt_responses(TestCase):
         models.Prompt.objects.create(
             text="How do you like the book {object}?",
             prompt_object_type=ContentType.objects.get_for_model(Book)
+        )
+
+        # same for response_object_type
+        models.Prompt.create(
+            text="How do you like the weather today?",
+            response_object_type=Book
+        )
+        models.Prompt.create(
+            text="How do you like the weather today?",
+            response_object_type=ContentType.objects.get_for_model(Book)
+        )
+
+        
+    def test_object_less_prompt(self):
+        # prompts without any object type should also work
+        prompt = models.Prompt.create(
+            text="How do you like the weather today?",
+            scale=10
+        )
+        instance = prompt.get_instance()
+        prompt.create_response(
+            user=self.user,
+            rating=10
         )
 
     def test_user_unique(self):
@@ -126,6 +150,10 @@ class TestPrompt_responses(TestCase):
         )
         self.assertEqual(-1, prompt.get_mean_tag_rating(instance.object, instance.response_objects[0]))
         self.assertEqual(0, prompt.get_mean_tag_rating(instance.object, instance.response_objects[2]))
+
+        ratings = list(prompt.get_mean_tag_ratings(instance.object))
+        expected = [{'response_object_id': 1, 'average_rating': -1.0}, {'response_object_id': 2, 'average_rating': -1.0}, {'response_object_id': 3, 'average_rating': 0.0}]
+        self.assertEqual(expected, ratings)
 
     def test_tagging_response_unique(self):
         Category.objects.create(name="crime")
@@ -265,8 +293,8 @@ class TestPrompt_responses(TestCase):
             ]
         )
         expected = {
-            '10_2': {'11_1': 0.5, '11_2': 1.0, '11_3': 0.0},
-            '10_3': {'11_1': -1.0, '11_2': 0.5, '11_3': -0.5}
+            2: {1: 0.5, 2: 1.0, 3: 0.0},
+            3: {1: -1.0, 2: 0.5, 3: -0.5}
         }
         self.assertEqual(expected, prompt.get_mean_tag_rating_matrix())
 

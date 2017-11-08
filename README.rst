@@ -82,12 +82,16 @@ Features
 --------
 
 * Prompt types
+
   * Likert scale ratings
   * Open-ended free text
   * Tagging
+
 * Populate prompts with objects
+
   * Either from one set of objects
   * Or let users tag relations between two sets of objects
+
 * Analytics convenience functions
 * (Coming soon) Plugable sampling algorithms
 

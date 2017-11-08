@@ -3,7 +3,8 @@ from __future__ import unicode_literals, absolute_import
 
 import django
 
-DEBUG = True
+# The test runner sets DEBUG=False anyway. You can reanble it per testcase if needed.
+DEBUG = False
 USE_TZ = True
 
 # SECURITY WARNING: keep the secret key used in production secret!

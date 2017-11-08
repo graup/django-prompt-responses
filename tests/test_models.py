@@ -22,7 +22,7 @@ class TestPrompt_responses(TestCase):
         Book.objects.create(title="Two Scoops of Django")
         self.user = User.objects.create_user(username='alice')
         self.user2 = User.objects.create_user(username='bob')
-
+        
     def test_basics(self):
         prompt_set = models.PromptSet.objects.create(name='book_rating')
         prompt = models.Prompt.objects.create(
@@ -48,9 +48,26 @@ class TestPrompt_responses(TestCase):
             rating=-1
         )
         self.assertEqual(0, prompt.get_mean_rating())
-        
+
+    def test_passing_model_class(self):
+        # These three methods of creating a prompt should all work
+        models.Prompt.create(
+            text="How do you like the book {object}?",
+            prompt_object_type=Book
+        )
+
+        models.Prompt.create(
+            text="How do you like the book {object}?",
+            prompt_object_type=ContentType.objects.get_for_model(Book)
+        )
+
+        models.Prompt.objects.create(
+            text="How do you like the book {object}?",
+            prompt_object_type=ContentType.objects.get_for_model(Book)
+        )
+
     def test_user_unique(self):
-        prompt = models.Prompt.objects.create(
+        prompt = models.Prompt.create(
             text="Was {object} a good read?",
             prompt_object_type=ContentType.objects.get_for_model(Book)
         )
@@ -79,11 +96,11 @@ class TestPrompt_responses(TestCase):
         Category.objects.create(name="thriller")
         Category.objects.create(name="travel")
 
-        prompt = models.Prompt.objects.create(
+        prompt = models.Prompt.create(
             type=models.Prompt.TYPES.tagging,
             text="Please mark all categories that you think are related to {object}.",
-            prompt_object_type=ContentType.objects.get_for_model(Book),
-            response_object_type=ContentType.objects.get_for_model(Category)
+            prompt_object_type=Book,
+            response_object_type=Category
         )
         instance = prompt.get_instance()
         response = prompt.create_response(
@@ -116,11 +133,11 @@ class TestPrompt_responses(TestCase):
         Category.objects.create(name="travel")
 
         # Create two response by same user. 
-        prompt = models.Prompt.objects.create(
+        prompt = models.Prompt.create(
             type=models.Prompt.TYPES.tagging,
             text="Please mark all categories that you think are related to {object}.",
-            prompt_object_type=ContentType.objects.get_for_model(Book),
-            response_object_type=ContentType.objects.get_for_model(Category)
+            prompt_object_type=Book,
+            response_object_type=Category
         )
         instance = prompt.get_instance()
         response1 = prompt.create_response(
@@ -171,11 +188,11 @@ class TestPrompt_responses(TestCase):
     def test_model_type_checks(self):
         Book.objects.create(title="Two Scoops of Django")
         Category.objects.create(name="crime")
-        prompt = models.Prompt.objects.create(
+        prompt = models.Prompt.create(
             type=models.Prompt.TYPES.tagging,
             text="Please mark all categories that you think are related to {object}.",
-            prompt_object_type=ContentType.objects.get_for_model(Book),
-            response_object_type=ContentType.objects.get_for_model(Category)
+            prompt_object_type=Book,
+            response_object_type=Category
         )
         instance = prompt.get_instance()
         # response with wrong prompt_object type
@@ -201,11 +218,11 @@ class TestPrompt_responses(TestCase):
         self.assertEqual(0, models.Tag.objects.count())
 
     def test_mean_tag_rating_matrix(self):
-        prompt = models.Prompt.objects.create(
+        prompt = models.Prompt.create(
             type=models.Prompt.TYPES.tagging,
             text="Please mark all categories that you think are related to {object}.",
-            prompt_object_type=ContentType.objects.get_for_model(Book),
-            response_object_type=ContentType.objects.get_for_model(Category)
+            prompt_object_type=Book,
+            response_object_type=Category
         )
         book1 = Book.objects.create(title="Two Scoops of Django")
         book2 = Book.objects.create(title="Another book")

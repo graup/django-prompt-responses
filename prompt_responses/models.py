@@ -58,6 +58,17 @@ class Prompt(models.Model):
     def __str__(self):
         return self.text
 
+    @classmethod
+    def create(cls, **kwargs):
+        """Convenience method that automatically gets the ContentType objects for passed in model classes"""
+        if kwargs.get('prompt_object_type', None):
+            if not isinstance(kwargs['prompt_object_type'], ContentType):
+                kwargs['prompt_object_type'] = ContentType.objects.get_for_model(kwargs['prompt_object_type'])
+        if kwargs.get('response_object_type', None):
+            if not isinstance(kwargs['response_object_type'], ContentType):
+                kwargs['response_object_type'] = ContentType.objects.get_for_model(kwargs['response_object_type'])
+        return cls.objects.create(**kwargs)
+
     class Instance(object):
         def __init__(self, prompt, obj, response_objects=None):
             self.prompt = prompt

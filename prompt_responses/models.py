@@ -18,6 +18,9 @@ class PromptSet(models.Model):
     modified = AutoLastModifiedField(_('modified'))
     name = models.SlugField()
 
+    def __str__(self):
+        return self.name
+
 
 class Prompt(models.Model):
     TYPES = Choices(

@@ -14,7 +14,7 @@ admin.site.register(models.Prompt, PromptAdmin)
 
 
 class TagInline(admin.TabularInline):
-    model = Tag
+    model = models.Tag
 
 
 class ResponseAdmin(admin.ModelAdmin):

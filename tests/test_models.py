@@ -133,7 +133,11 @@ class TestPrompt_responses(TestCase):
         )
         self.assertEqual(2, response1.tags.count())
 
-        # Create another response for same user and prompt, but different tag ratings
+        # Check that all ratings are correct
+        for (index, rating) in enumerate([1, 1, None]):
+            self.assertEqual(rating, prompt.get_mean_tag_rating(instance.object, instance.response_objects[index]))
+
+        # Create another response for the same user and prompt, but different tag ratings
         prompt.create_response(
             user=self.user,
             prompt_object=instance.object,
@@ -158,12 +162,96 @@ class TestPrompt_responses(TestCase):
                 (instance.response_objects[1], -1),
             ]
         )
-        # print(prompt.get_mean_tag_ratings(instance.object))
 
+        # Check that all ratings are correct
         self.assertEqual(-1, prompt.get_mean_tag_rating(instance.object, instance.response_objects[0]))
         for (index, rating) in enumerate([-1, 1, 0]):
             self.assertEqual(rating, prompt.get_mean_tag_rating(instance.object, instance.response_objects[index]))
 
+    def test_model_type_checks(self):
+        Book.objects.create(title="Two Scoops of Django")
+        Category.objects.create(name="crime")
+        prompt = models.Prompt.objects.create(
+            type=models.Prompt.TYPES.tagging,
+            text="Please mark all categories that you think are related to {object}.",
+            prompt_object_type=ContentType.objects.get_for_model(Book),
+            response_object_type=ContentType.objects.get_for_model(Category)
+        )
+        instance = prompt.get_instance()
+        # response with wrong prompt_object type
+        with self.assertRaises(ValueError):
+            prompt.create_response(
+                user=self.user,
+                prompt_object=instance.response_objects[0],
+                tags=[
+                    (instance.object, 1),
+                ]
+            )
+        # response with wrong tag_object type
+        with self.assertRaises(ValueError):
+            prompt.create_response(
+                user=self.user,
+                prompt_object=instance.object,
+                tags=[
+                    (instance.object, 1),
+                ]
+            )
+        # Check that no response or tags were saved
+        self.assertEqual(0, models.Response.objects.count())
+        self.assertEqual(0, models.Tag.objects.count())
+
+    def test_mean_tag_rating_matrix(self):
+        prompt = models.Prompt.objects.create(
+            type=models.Prompt.TYPES.tagging,
+            text="Please mark all categories that you think are related to {object}.",
+            prompt_object_type=ContentType.objects.get_for_model(Book),
+            response_object_type=ContentType.objects.get_for_model(Category)
+        )
+        book1 = Book.objects.create(title="Two Scoops of Django")
+        book2 = Book.objects.create(title="Another book")
+        Category.objects.create(name="crime")
+        Category.objects.create(name="thriller")
+        Category.objects.create(name="travel")
+        instance = prompt.get_instance()
+        prompt.create_response(
+            user=self.user,
+            prompt_object=book1,
+            tags=[
+                (instance.response_objects[0], 1),
+                (instance.response_objects[1], 1),
+                (instance.response_objects[2], -1),
+            ]
+        )
+        prompt.create_response(
+            user=self.user,
+            prompt_object=book2,
+            tags=[
+                (instance.response_objects[0], -1),
+                (instance.response_objects[1], 0),
+                (instance.response_objects[2], 0),
+            ]
+        )
+        prompt.create_response(
+            user=self.user2,
+            prompt_object=book1,
+            tags=[
+                (instance.response_objects[0], 0),
+                (instance.response_objects[2], 1),
+            ]
+        )
+        prompt.create_response(
+            user=self.user2,
+            prompt_object=book2,
+            tags=[
+                (instance.response_objects[1], 1),
+                (instance.response_objects[2], -1),
+            ]
+        )
+        expected = {
+            '10_2': {'11_1': 0.5, '11_2': 1.0, '11_3': 0.0},
+            '10_3': {'11_1': -1.0, '11_2': 0.5, '11_3': -0.5}
+        }
+        self.assertEqual(expected, prompt.get_mean_tag_rating_matrix())
 
     def tearDown(self):
         pass

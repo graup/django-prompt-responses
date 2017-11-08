@@ -9,6 +9,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Count, Avg, F, Max
 from random import randint
+from collections import defaultdict
+from django.db import transaction
 
 
 class PromptSet(models.Model):
@@ -74,7 +76,7 @@ class Prompt(models.Model):
     def get_prompt_object(self):
         """Get one object from the queryset to display in prompt"""
         queryset = self.get_queryset()
-
+        # Todo: make algorithm here plugable
         count = queryset.aggregate(count=Count('id'))['count']
         random_index = randint(0, count - 1)
         return queryset.all()[random_index]
@@ -82,6 +84,7 @@ class Prompt(models.Model):
     def get_response_objects(self):
         """Get a number of objects to display in tagging prompt"""
         queryset = self.get_response_queryset()
+        # Todo: make algorithm here plugable
         N = 3
         return queryset.all()[0:N]
 
@@ -93,28 +96,42 @@ class Prompt(models.Model):
             response_objects = self.get_response_objects()
         return self.__class__.Instance(self, obj, response_objects)
 
+    @transaction.atomic
     def create_response(self, user, tags=None, **kwargs):
         """
         Create and save a new response for this prompt.
-        Pass rating, text, or prompt_object as needed.
+        Pass rating or text, and prompt_object as needed.
         To save tag responses, pass tags=[(object1, rating1), (object2, rating2), ...]
 
-        Simple responses are not automatically unique per user
-        (some experiments might require asking the same question multiple times).
-        Some of the analytics functions offer a user_unique parameter to restrict analysis
+        Responses per se are not unique per user
+        (as some experiments might require asking the same question multiple times).
+        Some of the analytics functions offer a `user_unique` parameter to restrict analysis
         to the user's latest response only.
 
-        In contrast, note that tag responses are ensured to be unique
+        In contrast, note that tags are ensured to be unique
         for (prompt, user, prompt_object, response_object). If the user tagged this 
         combination before, it will be updated, incl. its relation
         (i.e. the original Response object will no longer be associated with this tag).
+
+        This method verifies that the objects match the models defined in the prompt and
+        raises a ValueError on a mismatch.
         """
+        prompt_object = kwargs.get('prompt_object', None)
+        if prompt_object:
+            if ContentType.objects.get_for_model(prompt_object) != self.prompt_object_type:
+                msg = 'prompt_object has a different model class (%s) than defined in the prompt (%s)'
+                raise ValueError(msg % (prompt_object.__class__.__name__, self.prompt_object_type.model))
+
         response = Response(**kwargs)
         response.user = user
         response.prompt = self
         response.save()
         if tags:
             for tag_object, tag_rating in tags:
+                if ContentType.objects.get_for_model(tag_object) != self.response_object_type:
+                    msg = 'tag_object has a different model class (%s) than defined in the prompt (%s)'
+                    raise ValueError(msg % (tag_object.__class__.__name__, self.response_object_type.model))
+                
                 try:
                     # Try to get existing tag by this user
                     tag = Tag.objects.get(
@@ -158,12 +175,36 @@ class Prompt(models.Model):
         r = q.aggregate(average_rating=Avg('rating'))
         return r['average_rating']
 
+    def get_mean_tag_rating_matrix(self):
+        """
+        Get mean ratings for all response_objects of all prompt_objects
+        Returns a matrix in the form of a two-level dict
+        {object1: {object2: 1}}, ...
+        Note that object keys are of the form content_type_id + '_' + object_id.
+        Refer to Django's contenttypes documentation to convert them back to model instances,
+        e.g. ContentTypes.objects.get_for_id(content_type_id).get_object_for_this_type(pk=object_id)
+        """
+        # SELECT AVG(tags__rating) WHERE prompt_id=... GROUP BY prompt_object, response_object
+        q = Tag.objects.values(
+            'response__content_type', 'response__object_id', 
+            'content_type', 'object_id'
+        ).filter(response__prompt=self).annotate(average_rating=Avg('rating')).order_by('content_type','object_id')
+
+        # Convert rows into matrix
+        matrix = defaultdict(dict)
+        for row in q.all():
+            right_key = '%d_%d' % (row['content_type'], row['object_id'])
+            left_key = '%d_%d' % (row['response__content_type'], row['response__object_id'])
+            matrix[left_key][right_key] = row['average_rating']
+        
+        return dict(matrix)
+        
     def get_mean_tag_ratings(self, prompt_object):
         """
         Get mean ratings for all response_objects of prompt_object
         Returns <QuerySet [{'response_object_id': 1, 'average_rating': -1.0}, ...>
         """
-        # SELECT AVG(tags__rating) WHERE prompt_object=... AND prompt_id=... GROUP BY(response_object)
+        # SELECT AVG(tags__rating) WHERE prompt_object=... AND prompt_id=... GROUP BY response_object
         q = self.responses
 
         q = q.values(response_object_id=F('tags__object_id')).filter(
@@ -173,7 +214,7 @@ class Prompt(models.Model):
         return q
     
     def get_mean_tag_rating(self, prompt_object, response_object):
-        """Get mean rating for response_object of prompt_object"""
+        """Get mean rating for response_object of prompt_object across all users"""
         # SELECT AVG(tags__rating) WHERE prompt_object=... AND response_object=... AND prompt_id=...
         q = self.responses
             

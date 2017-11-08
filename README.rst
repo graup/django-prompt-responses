@@ -13,8 +13,17 @@ prompt_responses
 
 A flexible prompt and user responses data schema utilizing the generic content types.
 
-This app was born during a research project. The main use case is data collection.
-It lets you create numerous kinds of "prompts" (e.g. questions or tasks) and record user responses.
+This app was born during a university research project. The main use case is data collection.
+It lets you create numerous kinds of "prompts" (questions or tasks) and record user responses.
+
+This supports these kind of prompts:
+
+* How do you feel today on a 1-5 scale? (Simple likert)
+* How do you like {object} on a 1-10 scale? (Object-based likert)
+* How related do you think it {object} to these other objects? (Tagging)
+
+Ratings and tags are simply integer values, their meaning can be defined by your application
+(e.g. 1 to 5 scales, or -1 = no, +1 = yes, and so on).
 
 Documentation
 -------------
@@ -87,24 +96,15 @@ Features
   * Open-ended free text
   * Tagging
 
-* Populate prompts with objects
+* Populate prompts with objects in order to
 
-  * Either from one set of objects
-  * Or let users tag relations between two sets of objects
+  * let users rate objects from one set
+  * let users rate (tag) relations between two sets of objects
 
 * Analytics convenience functions
-* (Coming soon) Plugable sampling algorithms
+* (Coming soon) Plugable object sampling algorithms
 
 Running Tests
--------------
-
-Does the code actually work?
-
-::
-
-    source <YOURVIRTUALENV>/bin/activate
-    (myenv) $ pip install tox
-    (myenv) $ tox
 
 Credits
 -------

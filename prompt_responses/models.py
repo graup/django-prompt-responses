@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Count, Avg, F, Max
-from random import randint
+import random
 from collections import defaultdict
 from django.db import transaction
 
@@ -84,35 +84,47 @@ class Prompt(models.Model):
             return self.prompt.display_text(self.object)
     
     def get_queryset(self):
+        """Get the queryset to sample a prompt_object from"""
         return self.prompt_object_type.model_class().objects
 
     def get_response_queryset(self):
+        """Get the queryset to sample response_objects from"""
         return self.response_object_type.model_class().objects
     
-    def get_prompt_object(self):
-        """Get one object from the queryset to display in prompt"""
+    def get_object(self, **kwargs):
+        """
+        Get one object from the queryset to display in prompt.
+        By default this samples one random object from the queryset."""
         queryset = self.get_queryset()
         # Todo: make algorithm here plugable
         count = queryset.aggregate(count=Count('id'))['count']
-        random_index = randint(0, count - 1)
+        random_index = random.randint(0, count - 1)
         return queryset.all()[random_index]
 
-    def get_response_objects(self):
-        """Get a number of objects to display in tagging prompt"""
+    def get_response_objects(self, n=3, **kwargs):
+        """
+        Get a number of objects to display in tagging prompt.
+        By default this selects n=3 random objects from the queryset
+        call get_instance with n=5 to choose other numbers.
+        """
         queryset = self.get_response_queryset()
         # Todo: make algorithm here plugable
-        N = 3
-        return queryset.all()[0:N]
+        count = queryset.aggregate(count=Count('id'))['count']
+        sample = random.sample(range(0, count), min(n, count))
+        return [queryset.all()[idx] for idx in sample]
 
-    def get_instance(self):
-        """Creates a single instance of this prompt with populated object"""
+    def get_instance(self, **kwargs):
+        """
+        Creates a single instance of this prompt with populated object.
+        kwargs are passed to get_object() and get_response_objects() so
+        you can override these with custom algorithms."""
         obj = None
         response_objects = None
 
         if self.prompt_object_type:
-            obj = self.get_prompt_object()
+            obj = self.get_object(**kwargs)
         if self.type == self.TYPES.tagging and self.response_object_type:
-            response_objects = self.get_response_objects()
+            response_objects = self.get_response_objects(**kwargs)
 
         return self.__class__.Instance(self, obj, response_objects)
 

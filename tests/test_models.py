@@ -8,7 +8,7 @@ test_django-prompt-responses
 Tests for `django-prompt-responses` models module.
 """
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import User
 
@@ -22,7 +22,7 @@ class TestPrompt_responses(TestCase):
         Book.objects.create(title="Two Scoops of Django")
         self.user = User.objects.create_user(username='alice')
         self.user2 = User.objects.create_user(username='bob')
-        
+  
     def test_basics(self):
         prompt_set = models.PromptSet.objects.create(name='book_rating')
         prompt = models.Prompt.objects.create(
@@ -113,6 +113,7 @@ class TestPrompt_responses(TestCase):
         self.assertEqual(0, prompt.get_mean_rating(user_unique=False))
         self.assertEqual(-1, prompt.get_mean_rating(user_unique=True))
 
+    #@override_settings(DEBUG=True)
     def test_tagging_response(self):
         Category.objects.create(name="romance")
         Category.objects.create(name="fantasy")
@@ -152,8 +153,15 @@ class TestPrompt_responses(TestCase):
         self.assertEqual(0, prompt.get_mean_tag_rating(instance.object, instance.response_objects[2]))
 
         ratings = list(prompt.get_mean_tag_ratings(instance.object))
-        expected = [{'response_object_id': 1, 'average_rating': -1.0}, {'response_object_id': 2, 'average_rating': -1.0}, {'response_object_id': 3, 'average_rating': 0.0}]
-        self.assertEqual(expected, ratings)
+        
+        expected = [
+            {'response_object_id': instance.response_objects[0].pk, 'average_rating': -1.0},
+            {'response_object_id': instance.response_objects[1].pk, 'average_rating': -1.0},
+            {'response_object_id': instance.response_objects[2].pk, 'average_rating': 0.0}
+        ]
+        expected_sorted = sorted(expected, key=lambda k: k['response_object_id']) 
+
+        self.assertEqual(expected_sorted, ratings)
 
     def test_tagging_response_unique(self):
         Category.objects.create(name="crime")
@@ -245,6 +253,25 @@ class TestPrompt_responses(TestCase):
         self.assertEqual(0, models.Response.objects.count())
         self.assertEqual(0, models.Tag.objects.count())
 
+    def test_tagging_n(self):
+        Category.objects.create(name="crime")
+        Category.objects.create(name="thriller")
+        Category.objects.create(name="travel")
+        Category.objects.create(name="children")
+        
+        prompt = models.Prompt.create(
+            type=models.Prompt.TYPES.tagging,
+            text="Please mark all categories that you think are related to {object}.",
+            prompt_object_type=Book,
+            response_object_type=Category
+        )
+        instance = prompt.get_instance(n=4)
+        self.assertEqual(4, len(instance.response_objects))
+
+        instance = prompt.get_instance(n=5)
+        # still 4, because there are only 4 items available
+        self.assertEqual(4, len(instance.response_objects))
+    
     def test_mean_tag_rating_matrix(self):
         prompt = models.Prompt.create(
             type=models.Prompt.TYPES.tagging,
@@ -293,8 +320,16 @@ class TestPrompt_responses(TestCase):
             ]
         )
         expected = {
-            2: {1: 0.5, 2: 1.0, 3: 0.0},
-            3: {1: -1.0, 2: 0.5, 3: -0.5}
+            book1.pk: {
+                instance.response_objects[0].pk: 0.5,
+                instance.response_objects[1].pk: 1.0,
+                instance.response_objects[2].pk: 0.0
+            },
+            book2.pk: {
+                instance.response_objects[0].pk: -1.0,
+                instance.response_objects[1].pk: 0.5,
+                instance.response_objects[2].pk: -0.5
+            }
         }
         self.assertEqual(expected, prompt.get_mean_tag_rating_matrix())
 

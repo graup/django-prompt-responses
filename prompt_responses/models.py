@@ -264,6 +264,7 @@ class Prompt(models.Model):
         r = q.aggregate(average_rating=Avg('tags__rating'))        
         return r['average_rating']
 
+# TODO verify type and object type combinations
 
 class Response(models.Model):
     created = AutoCreatedField(_('created'))

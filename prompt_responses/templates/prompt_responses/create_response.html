@@ -1,0 +1,23 @@
+{% extends "prompt_responses/base.html" %}
+
+{% block content %}
+    <div class="block-center">
+        <h1>{{prompt_instance}}</h1>
+
+        <form method="post" class="response-form response-type-{{prompt.type}}" action="">{% csrf_token %}
+            {{form.as_p}}
+
+            {{formset.management_form}}
+            <table>
+                {% for form in formset %}
+                <tr>
+                    <th>{{form.object}}</th>
+                    <td>{{form.rating}}</td>
+                </tr>
+                {% endfor %}
+            </table>
+
+            <input type="submit" value="Submit" class="btn btn-primary">
+        </form>
+    </div>
+{% endblock %}

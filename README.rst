@@ -11,16 +11,18 @@ prompt_responses
 .. image:: https://codecov.io/gh/graup/django-prompt-responses/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/graup/django-prompt-responses
 
-A flexible prompt and user responses data schema utilizing the generic content types.
+A flexible prompt and user responses data schema utilizing Django's content types framework.
 
 This app was born during a university research project. The main use case is data collection.
 It lets you create numerous kinds of "prompts" (questions or tasks) and record user responses.
+Prompts can be populated with any kind of database object.
 
 This supports these kind of prompts:
 
-* How do you feel today on a 1-5 scale? (Simple likert)
-* How do you like {object} on a 1-10 scale? (Object-based likert)
-* How related do you think it {object} to these other objects? (Tagging)
+* How do you feel today on a 1-5 scale? (Simple likert question)
+* How do you like {object} on a 1-10 scale? (Object-based likert question)
+* Which word do you associate with {object}? (Object-based open-ended question)
+* How related do you think is {object} to these other objects? (Tagging task)
 
 Ratings and tags are simply integer values, their meaning can be defined by your application
 (e.g. 1 to 5 scales, or -1 = no, +1 = yes, and so on).

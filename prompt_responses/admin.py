@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from . import models
 
+
 class PromptSetAdmin(admin.ModelAdmin):
     list_display = ("name", "created")
 admin.site.register(models.PromptSet, PromptSetAdmin)
@@ -24,6 +25,7 @@ class ResponseAdmin(admin.ModelAdmin):
         TagInline,
     ]
 admin.site.register(models.Response, ResponseAdmin)
+
 
 class TagAdmin(admin.ModelAdmin):
     list_display = ("rating", "response_object",)

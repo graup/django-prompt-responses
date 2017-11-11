@@ -27,8 +27,15 @@
             -moz-box-shadow: 0 1px 2px rgba(0,0,0,.05);
             box-shadow: 0 1px 2px rgba(0,0,0,.05);
         }
-        .block-center .block-center-heading {
-            margin-bottom: 10px;
+        #id_rating {
+            list-style: none;
+        }
+        #id_rating li {
+            display: inline;
+            margin-right: 1em;
+        }
+        #id_rating li label {
+            display: inline;
         }
     </style>
   </head>
@@ -37,7 +44,6 @@
         <div class="container">
         {% if messages %}
             <div>
-                <strong>Messages:</strong>
                 <ul>
                 {% for message in messages %}
                 <li>{{message}}</li>

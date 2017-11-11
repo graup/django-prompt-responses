@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Count, Avg, F, Max
+from django.core.exceptions import ValidationError
 import random
 from collections import defaultdict
 from django.db import transaction
@@ -60,6 +61,29 @@ class Prompt(models.Model):
 
     def __str__(self):
         return self.text
+
+    def clean_fields(self, exclude=None):
+        super(Prompt, self).clean_fields(exclude=exclude)
+        # Check consonsitency between fields
+        if self.type == self.TYPES.likert:
+            if not self.scale and not (exclude and 'scale' in exclude):
+                msg = _('Likert-style prompts require setting the scale attribute.')
+                raise ValidationError({'scale': msg})
+
+        if self.type == self.TYPES.tagging:
+            if not self.prompt_object_type or not self.response_object_type:
+                msg = _('Tagging-style prompts require setting both prompt_object_type and response_object_type attributes.')
+                error = {}
+                if not self.prompt_object_type:
+                    error['prompt_object_type'] = msg
+                if not self.response_object_type:
+                    error['response_object_type'] = msg
+                raise ValidationError(error)
+        
+        if not self.type == self.TYPES.tagging and self.response_object_type:
+                msg = _('Only tagging-style prompts can have a prompt_object_type.')
+                raise ValidationError({'response_object_type': msg})
+
 
     @classmethod
     def create(cls, **kwargs):
@@ -264,7 +288,6 @@ class Prompt(models.Model):
         r = q.aggregate(average_rating=Avg('tags__rating'))        
         return r['average_rating']
 
-# TODO verify type and object type combinations
 
 class Response(models.Model):
     created = AutoCreatedField(_('created'))

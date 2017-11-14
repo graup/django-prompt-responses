@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 
-from django.db import models
-from django.utils.translation import ugettext_lazy as _
-from model_utils import Choices
+from django.db import models, transaction
+from django.db.models import Count, Avg, F, Max
+from model_utils import Choices, FieldTracker
 from model_utils.fields import AutoCreatedField, AutoLastModifiedField
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
-from django.db.models import Count, Avg, F, Max
 from django.core.exceptions import ValidationError
+from django.utils.html import html_safe
+from django.utils.encoding import python_2_unicode_compatible
+from django.utils.translation import ugettext_lazy as _
 import random
 from collections import defaultdict
-from django.db import transaction
-
 
 class PromptSet(models.Model):
     created = AutoCreatedField(_('created'))
@@ -31,7 +31,8 @@ class Prompt(models.Model):
     )
 
     type = models.CharField(choices=TYPES, default=TYPES.likert, max_length=20)
-    scale = models.PositiveIntegerField(_('maximum value of likert scale'), null=True, blank=True)
+    scale_min = models.IntegerField(_('minimum value of likert scale'), default=1, blank=True)
+    scale_max = models.IntegerField(_('maximum value of likert scale'), null=True, blank=True)
     text = models.TextField(_('text, format can contain {object}'), default="{object}")
 
     prompt_object_type = models.ForeignKey(
@@ -56,19 +57,44 @@ class Prompt(models.Model):
         null=True, blank=True
     )
 
+    tracker = FieldTracker()
+
     def display_text(self, instance=None):
         return self.text.format(object=instance)
 
     def __str__(self):
         return self.text
 
+    custom_scale = None
+
+    def generate_scale(self):
+        """
+        Returns an iterator suitable for a form field's choices attribute
+        to generate a list of rating options for responses to this prompt.
+        By default, returns a numeric scale from scale_min to scale_max with
+        analogous text labels.
+        To change the scale, either subclass Prompt and override this function
+        or provide a custom_scale argument to the get_instance() function
+        or set the custom_scale attribute of the prompt object.
+        custom_scale can be a list or a function that receives one argument, the prompt.
+        """
+        if self.custom_scale:
+            if callable(self.custom_scale):
+                return self.custom_scale(self)
+            else:
+                return self.custom_scale
+
+        low = getattr(self, 'scale_min', 1)
+        high = getattr(self, 'scale_max', 5)
+        return [(i, str(i)) for i in range(low, high+1)]
+
     def clean_fields(self, exclude=None):
         super(Prompt, self).clean_fields(exclude=exclude)
         # Check consonsitency between fields
-        if self.type == self.TYPES.likert:
-            if not self.scale and not (exclude and 'scale' in exclude):
-                msg = _('Likert-style prompts require setting the scale attribute.')
-                raise ValidationError({'scale': msg})
+        if self.type in (self.TYPES.tagging, self.TYPES.likert, ):
+            if not self.scale_max and not (exclude and 'scale_max' in exclude):
+                msg = _('Likert-style and tagging prompts require setting both scale attribute.')
+                raise ValidationError({'scale_max': msg})
 
         if self.type == self.TYPES.tagging:
             if not self.prompt_object_type or not self.response_object_type:
@@ -84,6 +110,14 @@ class Prompt(models.Model):
                 msg = _('Only tagging-style prompts can have a prompt_object_type.')
                 raise ValidationError({'response_object_type': msg})
 
+        if self.tracker.has_changed('type'):
+            if self.responses.count() > 0:
+                msg = _(
+                    'Changing type for prompts that have responses is dangerous. '
+                    'Please create a new prompt or delete this prompt\'s responses first.'
+                )
+                raise ValidationError({'type': msg})
+
 
     @classmethod
     def create(cls, **kwargs):
@@ -96,11 +130,14 @@ class Prompt(models.Model):
                 kwargs['response_object_type'] = ContentType.objects.get_for_model(kwargs['response_object_type'])
         return cls.objects.create(**kwargs)
 
+    @html_safe
+    @python_2_unicode_compatible
     class Instance(object):
         """
-        An instance of a prompt to be rendered by UI.
+        A one-off instance of a prompt to be rendered by UI.
         It has `object` and `response_objects` that can be populated into the `prompt`.
         `str(instance)` returns the prompt text with the inserted `object`.
+        Objects of this class can be directly printed in HTML templates.
         """
         def __init__(self, prompt, obj, response_objects=None):
             self.prompt = prompt
@@ -140,13 +177,16 @@ class Prompt(models.Model):
         sample = random.sample(range(0, count), min(n, count))
         return [queryset.all()[idx] for idx in sample]
 
-    def get_instance(self, **kwargs):
+    def get_instance(self, custom_scale=None, **kwargs):
         """
         Creates a single instance of this prompt with populated object.
         kwargs are passed to get_object() and get_response_objects() so
         you can override these with custom algorithms."""
         obj = None
         response_objects = None
+        
+        if custom_scale:
+            self.custom_scale = custom_scale
 
         if self.prompt_object_type:
             obj = self.get_object(**kwargs)

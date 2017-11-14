@@ -9,6 +9,8 @@ from django.core.urlresolvers import resolve
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.functional import cached_property
 from django.core.exceptions import ImproperlyConfigured
+from django.contrib.messages.views import SuccessMessageMixin
+from django.utils.translation import ugettext_lazy as _
 
 
 class PromptInstanceMixin(object):
@@ -24,6 +26,7 @@ class PromptInstanceMixin(object):
     pk_url_kwarg = 'pk'
     prompt_model = Prompt
     prompt_queryset = None
+    custom_scale = None
 
     @cached_property
     def prompt(self):
@@ -31,7 +34,7 @@ class PromptInstanceMixin(object):
 
     @cached_property
     def prompt_instance(self):
-        return self.prompt.get_instance()
+        return self.prompt.get_instance(self.custom_scale)
 
     def get_prompt_queryset(self):
         if self.prompt_queryset is None:
@@ -54,8 +57,8 @@ class PromptInstanceMixin(object):
         if pk is not None:
             queryset = queryset.filter(pk=pk)
         else:
-            raise AttributeError("Generic detail view %s must be called with "
-                                 "either an object pk or a slug."
+            raise AttributeError("Prompt instance view %s must be called with "
+                                 "an object pk, or override get_prompt()."
                                  % self.__class__.__name__)
         return queryset.get()
 
@@ -69,10 +72,14 @@ class PromptInstanceMixin(object):
         return super(PromptInstanceMixin, self).get_context_data(**context)
 
 
-class BaseCreateResponseView(PromptInstanceMixin, CreateView):
+class BaseCreateResponseView(PromptInstanceMixin, SuccessMessageMixin, CreateView):
     form_class = ResponseForm
     template_name = 'prompt_responses/create_response.html'
     model = Response
+    success_message = _("The response was saved successfully")
+
+    def custom_scale(self, prompt):
+        return [(-1, 'no'), (0, 'maybe'), (-1, 'yes')]
 
     def get_user(self):
         raise ImproperlyConfigured(
@@ -96,11 +103,18 @@ class BaseCreateResponseView(PromptInstanceMixin, CreateView):
                 'object_id': obj.pk
             } for obj in self.prompt_instance.response_objects]
         if self.request.POST:
-            data['formset'] = ResponseTagsForm(self.request.POST, instance=self.object, initial=initial)
+            data['formset'] = ResponseTagsForm(self.request.POST, instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
         else:
-            data['formset'] = ResponseTagsForm(instance=self.object, initial=initial)
+            data['formset'] = ResponseTagsForm(instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
         data['formset'].extra = len(initial)
         return data
+
+    def get_success_url(self):
+        return reverse(
+            'prompt_responses:create_response',
+            args=[self.prompt.pk],
+            current_app=self.request.resolver_match.namespace
+        )
 
     @transaction.atomic
     def form_valid(self, form):
@@ -113,13 +127,6 @@ class BaseCreateResponseView(PromptInstanceMixin, CreateView):
             formset.save()
 
         return super(BaseCreateResponseView, self).form_valid(form)
-
-    def get_success_url(self):
-        return reverse(
-            'prompt_responses:create_response',
-            args=[self.prompt.pk],
-            current_app=self.request.resolver_match.namespace
-        )
 
 
 class CreateResponseView(LoginRequiredMixin, BaseCreateResponseView):

@@ -1,0 +1,11 @@
+{{form.as_p}}
+
+{{formset.management_form}}
+<table>
+    {% for form in formset %}
+    <tr>
+        <th>{{form.object}}</th>
+        <td>{{form.rating}}</td>
+    </tr>
+    {% endfor %}
+</table>

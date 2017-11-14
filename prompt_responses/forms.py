@@ -5,11 +5,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 
 
-class ResponseForm(forms.ModelForm):
-    rating = forms.TypedChoiceField(choices=[], widget=forms.RadioSelect, coerce=int)
+class RatingRadioSelect(forms.RadioSelect):
+    template_name = 'prompt_responses/widgets/radio.html'
+    option_template_name = 'prompt_responses/widgets/radio_option.html'
 
-    def make_rating_choices(self, low, high):
-        return [(i, str(i)) for i in range(low, high+1)]
+
+class ResponseForm(forms.ModelForm):
+    rating = forms.TypedChoiceField(choices=[], widget=RatingRadioSelect(attrs={'class':'rating-input'}), coerce=int)
 
     class Meta:
         model = Response
@@ -36,11 +38,7 @@ class ResponseForm(forms.ModelForm):
         if prompt_instance.prompt.type == Prompt.TYPES.likert:
             del self.fields['text']
             self.fields['rating'].required = True
-            if not prompt_instance.prompt.scale:
-                scale = 5
-            else:
-                scale = prompt_instance.prompt.scale
-            self.fields['rating'].choices = self.make_rating_choices(1, scale)
+            self.fields['rating'].choices = prompt_instance.prompt.generate_scale()
         if prompt_instance.prompt.type == Prompt.TYPES.openended:
             del self.fields['rating']
             self.fields['text'].required = True
@@ -69,9 +67,7 @@ class TagForm(forms.ModelForm):
             pk=self.initial.get('object_id')
         )
 
-    rating = forms.TypedChoiceField(
-        choices=range(0,5), widget=forms.RadioSelect, coerce=int
-    )
+    rating = forms.TypedChoiceField(choices=[], widget=RatingRadioSelect(attrs={'class':'rating-input'}), coerce=int)
 
     class Meta:
         model = Tag
@@ -81,5 +77,9 @@ class TagForm(forms.ModelForm):
             'object_id': forms.HiddenInput(),
         }
 
+    def __init__(self, prompt_instance=None, *args, **kwargs):
+        super(TagForm, self).__init__(*args, **kwargs)
+
+        self.fields['rating'].choices = prompt_instance.prompt.generate_scale()
 
 ResponseTagsForm = inlineformset_factory(Response, Tag, form=TagForm, can_delete=False, extra=0)

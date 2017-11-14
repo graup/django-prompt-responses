@@ -2,20 +2,11 @@
 
 {% block content %}
     <div class="block-center">
-        <h1>{{prompt_instance}}</h1>
+        <h2>{{prompt_instance}}</h2>
 
         <form method="post" class="response-form response-type-{{prompt.type}}" action="">{% csrf_token %}
-            {{form.as_p}}
 
-            {{formset.management_form}}
-            <table>
-                {% for form in formset %}
-                <tr>
-                    <th>{{form.object}}</th>
-                    <td>{{form.rating}}</td>
-                </tr>
-                {% endfor %}
-            </table>
+            {% include 'prompt_responses/response_form.html' %}
 
             <input type="submit" value="Submit" class="btn btn-primary">
         </form>

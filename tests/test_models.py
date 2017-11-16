@@ -11,6 +11,7 @@ Tests for `django-prompt-responses` models module.
 from django.test import TestCase, override_settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 from prompt_responses import models
 from .models import Book, Category
@@ -82,7 +83,7 @@ class TestPrompt_responses(TestCase):
         # prompts without any object type should also work
         prompt = models.Prompt.create(
             text="How do you like the weather today?",
-            scale=10
+            scale_max=10
         )
         instance = prompt.get_instance()
         prompt.create_response(
@@ -232,7 +233,7 @@ class TestPrompt_responses(TestCase):
         )
         instance = prompt.get_instance()
         # response with wrong prompt_object type
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             prompt.create_response(
                 user=self.user,
                 prompt_object=instance.response_objects[0],
@@ -241,7 +242,7 @@ class TestPrompt_responses(TestCase):
                 ]
             )
         # response with wrong tag_object type
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             prompt.create_response(
                 user=self.user,
                 prompt_object=instance.object,

@@ -146,6 +146,10 @@ class Prompt(models.Model):
 
         def __str__(self):
             return self.prompt.display_text(self.object)
+
+        @property
+        def prompt_id(self):
+            return getattr(self.prompt, 'id', None)
     
     def get_queryset(self):
         """Get the queryset to sample a prompt_object from"""
@@ -201,6 +205,7 @@ class Prompt(models.Model):
         Create and save a new response for this prompt.
         Pass rating or text, and prompt_object as needed.
         To save tag responses, pass tags=[(object1, rating1), (object2, rating2), ...]
+        OR as a dictionary, tags=[{'object_id': id1, 'rating': rating2}, ...]
 
         Responses per se are not unique per user
         (as some experiments might require asking the same question multiple times).
@@ -213,23 +218,35 @@ class Prompt(models.Model):
         (i.e. the original Response object will no longer be associated with this tag).
 
         This method verifies that the objects match the models defined in the prompt and
-        raises a ValueError on a mismatch.
+        raises a ValidationException on a mismatch.
         """
-        prompt_object = kwargs.get('prompt_object', None)
-        if prompt_object:
-            if ContentType.objects.get_for_model(prompt_object) != self.prompt_object_type:
-                msg = 'prompt_object has a different model class (%s) than defined in the prompt (%s)'
-                raise ValueError(msg % (prompt_object.__class__.__name__, self.prompt_object_type.model))
+        if not 'rating' in kwargs and not 'text' in kwargs and not tags:
+            msg = 'A response has to include at least one of rating, text, or tags.'
+            raise ValidationError(msg)
 
         response = Response(**kwargs)
         response.user = user
         response.prompt = self
+        response.clean_fields()
         response.save()
         if tags:
+            if not self.response_object_type:
+                msg = 'This prompt does not support tagging. Set type to tagging and choose a response_object_type'
+                raise ValidationError({'tag_object': msg})
+
+            if len(tags) and isinstance(tags[0], dict):
+                # Alternative tag dict format, translate
+                tags = map(dict, tags)
+                tags = [(tag['object_id'], tag['rating']) for tag in tags]
+
             for tag_object, tag_rating in tags:
+                # Resuce tag_object that is only an object_id
+                if isinstance(tag_object, (int, str)):
+                    tag_object = self.response_object_type.get_object_for_this_type(pk=tag_object)
+
                 if ContentType.objects.get_for_model(tag_object) != self.response_object_type:
                     msg = 'tag_object has a different model class (%s) than defined in the prompt (%s)'
-                    raise ValueError(msg % (tag_object.__class__.__name__, self.response_object_type.model))
+                    raise ValidationError({'tag_object': msg % (tag_object.__class__.__name__, self.response_object_type.model)})
                 
                 try:
                     # Try to get existing tag by this user
@@ -343,6 +360,28 @@ class Response(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     prompt_object = GenericForeignKey('content_type', 'object_id')
+
+    def clean_fields(self, exclude=None):
+        super(Response, self).clean_fields(exclude=exclude)
+        # Check type of prompt_object
+        if self.prompt_object:
+            if ContentType.objects.get_for_model(self.prompt_object) != self.prompt.prompt_object_type:
+                msg = 'The Response\'s prompt_object has a different model class (%s) than defined in the prompt (%s)'
+                raise ValidationError({'prompt_object': msg % (
+                    self.prompt_object.__class__.__name__,
+                    self.prompt.prompt_object_type.model
+                )})
+        
+        # Check if reconstruct prompt_object from object_id and prompt object_type
+        # This allows to create Response objects with only object_id (making the content_type implicit)
+        if not self.prompt_object and self.object_id and self.prompt:
+            content_type = self.prompt.prompt_object_type
+            self.prompt_object = content_type.get_object_for_this_type(pk=self.object_id)
+
+        # Check if prompt_object is optional
+        if not self.prompt_object and self.prompt.prompt_object_type:
+            msg = 'This field is required for this prompt.'
+            raise ValidationError({'prompt_object': msg})
 
 
 class Tag(models.Model):

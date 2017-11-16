@@ -89,6 +89,23 @@ Analyze data:
     # Mean ratings for one object
     ratings = list(prompt.get_mean_tag_ratings(instance.object))
 
+Use the included viewsets in your Django Rest Framework API:
+
+.. code-block:: python
+
+    from rest_framework import routers
+    from prompt_responses.viewsets import PromptViewSet
+
+    router = routers.DefaultRouter()
+    router.register(r'prompts', PromptViewSet)
+
+    urlpatterns = [
+        url(r'^api/', include(router.urls))
+    ]
+
+This offers `api/prompts/`, `api/prompts/<id>/`, `api/prompts/<id>/instantiate/`,
+`api/prompts/<id>/create-response/` (POST) endpoints.
+
 Features
 --------
 
@@ -105,6 +122,7 @@ Features
 
 * Analytics convenience functions
 * (Coming soon) Plugable object sampling algorithms
+* Support for Django Rest Framework
 
 Running Tests
 

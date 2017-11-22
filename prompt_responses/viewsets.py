@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
 from .serializers import PromptSerializer, PromptInstanceSerializer, ResponseSerializer
 from .models import Prompt
+from django.views.decorators.csrf import csrf_exempt
+
 
 class PromptViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Prompt.objects.all()
@@ -18,6 +20,7 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
         instance_serializer = PromptInstanceSerializer(instance, context=context)
         return Response(instance_serializer.data)
 
+    @csrf_exempt
     @detail_route(methods=['post'], url_path='create-response')
     def create_response(self, request, pk=None):
         """Create a response for a prompt"""

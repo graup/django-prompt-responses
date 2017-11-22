@@ -60,7 +60,7 @@ class TestPrompt_responses(TestCase):
         # Unauthenticated should be not allowed
         request = self.api.post('')
         response = view(request, pk=self.prompt.pk).render()
-        self.assertEquals(403, response.status_code)
+        self.assertEquals(401, response.status_code)
         
         # Authenticated but Missing data
         force_authenticate(request, user=self.user)

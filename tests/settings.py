@@ -44,6 +44,15 @@ TEMPLATES = [
     },
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ],
+}
+
 """
 Uncomment for SQL query logging. Needs Debug=True which the test runner automatically deactivates,
 so for tests explicitly use @override_settings(DEBUG=True)

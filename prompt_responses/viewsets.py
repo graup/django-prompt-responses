@@ -2,14 +2,16 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from .serializers import PromptSerializer, PromptInstanceSerializer, ResponseSerializer
 from .models import Prompt
-from django.views.decorators.csrf import csrf_exempt
 
 
 class PromptViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read only prompts API view"""
     queryset = Prompt.objects.all()
     serializer_class = PromptSerializer
+    permission_classes = []
 
     @detail_route(methods=['get'],)
     def instantiate(self, request, pk=None):
@@ -20,10 +22,9 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
         instance_serializer = PromptInstanceSerializer(instance, context=context)
         return Response(instance_serializer.data)
 
-    @csrf_exempt
-    @detail_route(methods=['post'], url_path='create-response')
+    @detail_route(methods=['post'], url_path='create-response', permission_classes=[])
     def create_response(self, request, pk=None):
-        """Create a response for a prompt"""
+        """Create a response for a prompt. Request needs to be authenticated"""
         # This call needs to be authenticated as every request is assigned to a user
         if not self.request.user or not self.request.user.is_authenticated():
             raise NotAuthenticated()

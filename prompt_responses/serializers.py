@@ -1,7 +1,50 @@
 from rest_framework import serializers
-from .models import Prompt, Response, Tag
+from .models import Prompt, PromptSet, Response, Tag
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from rest_framework.reverse import reverse
+
+
+class PromptSetPromptInstanceHyperlink(serializers.HyperlinkedRelatedField):
+    "URL for next prompt's instance based on current prompt"
+    view_name = 'prompt-instantiate-from-set'
+
+    def get_url(self, obj, view_name, request, format):
+        if not obj.first_prompt:
+            return None
+        url_kwargs = {
+            'promptset_name': obj.name,
+            'pk': obj.first_prompt.pk
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
+class NextPromptInstanceHyperlink(serializers.HyperlinkedRelatedField):
+    "URL for next prompt's instance based on current prompt"
+    view_name = 'prompt-instantiate-from-set'
+
+    def get_url(self, obj, view_name, request, format):
+        if not obj.next_prompt:
+            return None
+        url_kwargs = {
+            'promptset_name': obj.promptset.name,
+            'pk': obj.next_prompt.pk
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+class PromptSetSerializer(serializers.HyperlinkedModelSerializer):
+    next_prompt_instance = PromptSetPromptInstanceHyperlink(source="*", read_only=True)
+    ordered_prompts = serializers.HyperlinkedIdentityField(
+        view_name='prompt-detail', source="prompts", many=True, read_only=True
+    )
+
+    class Meta:
+        model = PromptSet
+        fields = ('url', 'ordered_prompts', 'next_prompt_instance', )
+        lookup_field = 'name'
+        extra_kwargs = {
+            'url': {'lookup_field': 'name'}
+        }
 
 class PromptSerializer(serializers.HyperlinkedModelSerializer):
     instance_url = serializers.HyperlinkedIdentityField(view_name='prompt-instantiate')
@@ -30,14 +73,20 @@ class GenericSerializer(serializers.Serializer):
         fields = ('id', '__str__', )
 
 class PromptInstanceSerializer(serializers.Serializer):
-    response_create_url = serializers.HyperlinkedRelatedField(view_name='prompt-create-response', source='prompt', read_only=True)
+    next_prompt_instance = NextPromptInstanceHyperlink(source="*", read_only=True)
+    response_create_url = serializers.HyperlinkedRelatedField(
+        view_name='prompt-create-response', source='prompt', read_only=True
+    )
+    promptset = serializers.HyperlinkedRelatedField(
+        view_name='promptset-detail', lookup_field='name', read_only=True
+    )
     prompt = PromptSerializer()
     object = GenericSerializer()
     response_objects = GenericSerializer(many=True)
     display_text = serializers.CharField(source="__str__")
-
+    
     class Meta:
-        fields = ('url', 'response_url', 'display_text', 'prompt', 'object', 'response_objects', )
+        fields = ('url', 'next_prompt_instance', 'response_url', 'display_text', 'prompt', 'object', 'response_objects', )
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:

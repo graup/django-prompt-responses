@@ -13,11 +13,17 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 import random
 from collections import defaultdict
+from sortedm2m.fields import SortedManyToManyField
 
 class PromptSet(models.Model):
     created = AutoCreatedField(_('created'))
     modified = AutoLastModifiedField(_('modified'))
     name = models.SlugField()
+    prompts = SortedManyToManyField('Prompt')
+
+    @property
+    def first_prompt(self):
+        return self.prompts.first()
 
     def __str__(self):
         return self.name
@@ -50,12 +56,6 @@ class Prompt(models.Model):
 
     created = AutoCreatedField(_('created'))
     modified = AutoLastModifiedField(_('modified'))
-    prompt_set = models.ForeignKey(
-        'PromptSet',
-        on_delete=models.CASCADE,
-        related_name='prompts',
-        null=True, blank=True
-    )
 
     tracker = FieldTracker()
 
@@ -139,10 +139,11 @@ class Prompt(models.Model):
         `str(instance)` returns the prompt text with the inserted `object`.
         Objects of this class can be directly printed in HTML templates.
         """
-        def __init__(self, prompt, obj, response_objects=None):
+        def __init__(self, prompt, obj, response_objects=None, promptset=None):
             self.prompt = prompt
             self.object = obj
             self.response_objects = response_objects
+            self.promptset = promptset
 
         def __str__(self):
             return self.prompt.display_text(self.object)
@@ -150,6 +151,25 @@ class Prompt(models.Model):
         @property
         def prompt_id(self):
             return getattr(self.prompt, 'id', None)
+    
+        @property
+        def next_prompt(self):
+            "Get the next prompt in order of the promptset"
+            if not self.promptset:
+                return None
+
+            # Grab the current prompt's sort_value from the through table
+            current_sort_value = self.promptset.prompts.through.objects.extra(
+                select={'sort_value': 'sort_value'}
+            ).values('sort_value').filter(prompt_id=self.prompt.pk)
+
+            try:
+                # Get the prompt with a sort_value > current prompt's sort_value
+                prompt_id = self.promptset.prompts.through.objects.filter(sort_value__gt=current_sort_value).values('prompt_id')[0]['prompt_id']
+            except IndexError:
+                return None
+            
+            return Prompt.objects.get(pk=prompt_id)
     
     def get_queryset(self):
         """Get the queryset to sample a prompt_object from"""
@@ -181,11 +201,12 @@ class Prompt(models.Model):
         sample = random.sample(range(0, count), min(n, count))
         return [queryset.all()[idx] for idx in sample]
 
-    def get_instance(self, custom_scale=None, **kwargs):
+    def get_instance(self, custom_scale=None, promptset=None, **kwargs):
         """
         Creates a single instance of this prompt with populated object.
         kwargs are passed to get_object() and get_response_objects() so
-        you can override these with custom algorithms."""
+        you can override these with custom algorithms.
+        If you pass a prompt_set, the instance can determine a next_prompt_instance url."""
         obj = None
         response_objects = None
         
@@ -197,7 +218,7 @@ class Prompt(models.Model):
         if self.type == self.TYPES.tagging and self.response_object_type:
             response_objects = self.get_response_objects(**kwargs)
 
-        return self.__class__.Instance(self, obj, response_objects)
+        return self.__class__.Instance(self, obj, response_objects, promptset)
 
     @transaction.atomic
     def create_response(self, user, tags=None, **kwargs):

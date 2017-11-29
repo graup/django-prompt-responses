@@ -29,8 +29,9 @@ class TestPrompt_responses(TestCase):
         prompt = models.Prompt.objects.create(
             text="How do you like the book {object}?",
             prompt_object_type=ContentType.objects.get_for_model(Book),
-            prompt_set=prompt_set
         )
+        prompt_set.prompts.add(prompt)
+        prompt_set.save()
         instance = prompt.get_instance()
         self.assertEqual(str(instance), 'How do you like the book Two Scoops of Django?')
         self.assertEqual(str(prompt), 'How do you like the book {object}?')
@@ -333,6 +334,31 @@ class TestPrompt_responses(TestCase):
             }
         }
         self.assertEqual(expected, prompt.get_mean_tag_rating_matrix())
+
+    def test_promptset_ordering(self):
+        prompt_set = models.PromptSet.objects.create(name='book-rating')
+        prompt1 = models.Prompt.objects.create(
+            text="How do you like the book {object}?",
+            prompt_object_type=ContentType.objects.get_for_model(Book),
+        )
+        prompt_set.prompts.add(prompt1)
+        prompt2 = models.Prompt.objects.create(
+            text="Is this book written well? {object}",
+            prompt_object_type=ContentType.objects.get_for_model(Book),
+        )
+        prompt_set.prompts.add(prompt2)
+        prompt_set.save()
+        prompt = prompt_set.first_prompt
+
+        instance = prompt.get_instance()
+        self.assertEquals(instance.next_prompt, None)
+
+        instance = prompt.get_instance(promptset=prompt_set)
+        self.assertEquals(instance.prompt.pk, prompt1.pk)
+        self.assertEquals(instance.next_prompt.pk, prompt2.pk)
+        
+        next_prompt_instance = instance.next_prompt.get_instance(promptset=prompt_set)
+        self.assertEquals(next_prompt_instance.next_prompt, None)
 
     def tearDown(self):
         pass

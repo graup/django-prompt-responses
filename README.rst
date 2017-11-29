@@ -44,8 +44,15 @@ Add it to your `INSTALLED_APPS`:
 .. code-block:: python
 
     INSTALLED_APPS = (
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
         ...
-        'prompt_responses.apps.PromptResponsesConfig',
+        'prompt_responses',
+        'sortedm2m',  # for the ability to change the order of Prompts in the Django admin
         ...
     )
 

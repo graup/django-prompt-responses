@@ -10,6 +10,10 @@ Prompt
 PromptInstance
 --------------
 
+.. class:: PromptInstance
+
+    Foo
+
 Response
 ========
 

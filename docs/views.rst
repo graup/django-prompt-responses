@@ -5,35 +5,44 @@ Views
 Mixins
 ------
 
-.. class:: PromptInstanceMixin:
+.. class:: PromptInstanceMixin
 
     Provide prompt and prompt_instance to a view.
 
     Tries to get prompt by looking up the pk parameter from thr request url.
     Override get_prompt() to choose a different way of obtaining the prompt object.
 
+    .. code-block:: python
+
        from prompt_responses.views import PromptInstanceMixin
 
        class MyView(PromptInstanceMixin, View):
-
             ...
 
-                self.prompt
-                self.prompt_instance
+    The view will have both `prompt` and `prompt_instance` as attributes.
+    They are also added to the template context.
 
-    Both `prompt` and `prompt_instance` are also added to the template context.
+    .. attribute:: prompt
+
+       The :class:`Prompt` that is displayed in this view
+
+    .. attribute:: prompt_instance
+
+       The :class:`PromptInstance` that is displayed in this view
 
 
 Class-based Views
 -----------------
 
-.. class:: CreateResponseView(PromptInstanceMixin, ...):
+.. class:: CreateResponseView(PromptInstanceMixin, ...)
 
     A simple view that can display a template with the instantiated prompt and a form to
     create a response for this prompt.
 
     You can add it as-is to your URL configuration:
 
+    .. code-block:: python
+    
         from prompt_responses.views import CreateResponseView
         
         urlpatterns = [

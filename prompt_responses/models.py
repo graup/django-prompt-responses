@@ -393,7 +393,7 @@ class Response(models.Model):
                     self.prompt.prompt_object_type.model
                 )})
         
-        # Check if reconstruct prompt_object from object_id and prompt object_type
+        # Check if we can reconstruct prompt_object from object_id and prompt object_type
         # This allows to create Response objects with only object_id (making the content_type implicit)
         if not self.prompt_object and self.object_id and self.prompt:
             content_type = self.prompt.prompt_object_type

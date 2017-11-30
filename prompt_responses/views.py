@@ -85,8 +85,8 @@ class BaseCreateResponseView(PromptInstanceMixin, SuccessMessageMixin, CreateVie
 
     def get_user(self):
         raise ImproperlyConfigured(
-            "It is necessary to override "
-            "%(cls)s.get_user()." % {
+            "It is necessary to override %(cls)s.get_user(). "
+            "A user is required to create a response." % {
                 'cls': self.__class__.__name__
             }
         )

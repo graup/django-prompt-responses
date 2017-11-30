@@ -9,8 +9,10 @@ Mixins
 
     Provide prompt and prompt_instance to a view.
 
-    Tries to get prompt by looking up the pk parameter from thr request url.
+    Tries to get prompt by looking up the pk parameter from the request URL.
     Override get_prompt() to choose a different way of obtaining the prompt object.
+
+    Example usage
 
     .. code-block:: python
 
@@ -53,4 +55,7 @@ Class-based Views
 
     For example, you can sub-class `CreateResponseView` and override `get_prompt()`
     to choose a different way of obtaining the prompt object.
+
+    This view requires authentication and uses the user from the current request to create the response.
+    You can also use the `BaseCreateResponseView` and provide an alternative `get_user()` method instead.
 

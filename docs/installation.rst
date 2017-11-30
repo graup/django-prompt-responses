@@ -4,9 +4,11 @@ Installation
 
 Install with pip
 
+.. sourcecode:: sh
+
     $ pip install django-prompt-responses
 
-Add it to your `INSTALLED_APPS`:
+Add it to your `INSTALLED_APPS`
 
 .. code-block:: python
 
@@ -24,7 +26,6 @@ Add it to your `INSTALLED_APPS`:
     )
 
 Sync your database
-------------------
 
 .. sourcecode:: sh
 

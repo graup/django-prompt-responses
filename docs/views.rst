@@ -5,61 +5,43 @@ Views
 Mixins
 ------
 
+.. class:: PromptInstanceMixin:
+
+    Provide prompt and prompt_instance to a view.
+
+    Tries to get prompt by looking up the pk parameter from thr request url.
+    Override get_prompt() to choose a different way of obtaining the prompt object.
+
+       from prompt_responses.views import PromptInstanceMixin
+
+       class MyView(PromptInstanceMixin, View):
+
+            ...
+
+                self.prompt
+                self.prompt_instance
+
+    Both `prompt` and `prompt_instance` are also added to the template context.
+
+
 Class-based Views
 -----------------
 
-Django OAuth Toolkit provides generic classes useful to implement OAuth2 protected endpoints
-using the *Class Based View* approach.
+.. class:: CreateResponseView(PromptInstanceMixin, ...):
 
+    A simple view that can display a template with the instantiated prompt and a form to
+    create a response for this prompt.
 
-.. class:: ProtectedResourceView(ProtectedResourceMixin, View):
+    You can add it as-is to your URL configuration:
 
-    A view that provides OAuth2 authentication out of the box. To implement a protected
-    endpoint, just define your CBV as::
+        from prompt_responses.views import CreateResponseView
+        
+        urlpatterns = [
+            url(r'^prompt/(?P<pk>[0-9]+)/$', CreateResponseView.as_view(), name='create_response'),
+        ]
+    
+    Or have a look at the code to get an idea of making your own view.
 
-        class MyEndpoint(ProtectedResourceView):
-            """
-            A GET endpoint that needs OAuth2 authentication
-            """
-            def get(self, request, *args, **kwargs):
-                return HttpResponse('Hello, World!')
+    For example, you can sub-class `CreateResponseView` and override `get_prompt()`
+    to choose a different way of obtaining the prompt object.
 
-    **Please notice**: ``OPTION`` method is not OAuth2 protected to allow preflight requests.
-
-.. class:: ScopedProtectedResourceView(ScopedResourceMixin, ProtectedResourceView):
-
-    A view that provides OAuth2 authentication and scopes handling out of the box. To implement
-    a protected endpoint, just define your CBV specifying the ``required_scopes`` field::
-
-        class MyScopedEndpoint(ScopedProtectedResourceView):
-            required_scopes = ['can_make_it can_break_it']
-
-            """
-            A GET endpoint that needs OAuth2 authentication
-            and a set of scopes: 'can_make_it' and 'can_break_it'
-            """
-            def get(self, request, *args, **kwargs):
-                return HttpResponse('Hello, World!')
-
-
-.. class:: ReadWriteScopedResourceView(ReadWriteScopedResourceMixin, ProtectedResourceView):
-
-    A view that provides OAuth2 authentication and read/write default scopes.
-    ``GET``, ``HEAD``, ``OPTIONS`` http methods require ``read`` scope, others methods
-    need the ``write`` scope. If you need, you can always specify an additional list of
-    scopes in the ``required_scopes`` field::
-
-        class MyRWEndpoint(ReadWriteScopedResourceView):
-            required_scopes = ['has_additional_powers']  # optional
-
-            """
-            A GET endpoint that needs OAuth2 authentication
-            and the 'read' scope. If required_scopes was specified,
-            clients also need those scopes.
-            """
-            def get(self, request, *args, **kwargs):
-                return HttpResponse('Hello, World!')
-
-
-Generic views in DOT are obtained composing a set of mixins you can find in the :doc:`views.mixins <mixins>`
-module: feel free to use those mixins directly if you want to provide your own class based views.

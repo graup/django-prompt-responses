@@ -348,15 +348,18 @@ class TestPrompt_responses(TestCase):
         )
         prompt_set.prompts.add(prompt2)
         prompt_set.save()
-        prompt = prompt_set.first_prompt
 
+        # prompt set should have first prompt
+        prompt = prompt_set.first_prompt
         instance = prompt.get_instance()
         self.assertEquals(instance.next_prompt, None)
 
+        # prompt instance should point to next prompt
         instance = prompt.get_instance(promptset=prompt_set)
         self.assertEquals(instance.prompt.pk, prompt1.pk)
         self.assertEquals(instance.next_prompt.pk, prompt2.pk)
-        
+
+        # next prompt instance should point to None
         next_prompt_instance = instance.next_prompt.get_instance(promptset=prompt_set)
         self.assertEquals(next_prompt_instance.next_prompt, None)
 

@@ -6,14 +6,26 @@
 Welcome to prompt_responses's documentation!
 =================================================================
 
-Contents:
+This is a generic implementation of prompts and responses to collect user data.
+It comes with a set of APIs and integration with Django Rest Framework to make your life easier.
+It is also extendable to use your own data and algorithms.
+
+Requirements
+------------
+
+* Python 2.7, 3.4, 3.5, 3.6
+* Django 1.8, 1.9, 1.10, 1.11
+
+Index
+=====
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   readme
    installation
    usage
+   models
+   views
+   rest-framework
    contributing
-   authors
    history

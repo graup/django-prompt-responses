@@ -4,13 +4,15 @@ from django.views.generic.detail import SingleObjectMixin
 from .forms import ResponseForm, ResponseTagsForm
 from .models import Prompt, Response
 from django.contrib.contenttypes.models import ContentType
-from django.urls import reverse
-from django.core.urlresolvers import resolve
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.functional import cached_property
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.messages.views import SuccessMessageMixin
 from django.utils.translation import ugettext_lazy as _
+try:
+    from django.urls import reverse, resolve
+except ImportError:
+    from django.core.urlresolvers import reverse, resolve
 
 
 class PromptInstanceMixin(object):

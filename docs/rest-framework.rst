@@ -2,8 +2,9 @@
 Django Rest Framework
 =====================
 
-To use the included viewsets in your Django Rest Framework API, simply register them
-in a router like so:
+This package comes with viewsets and serializers compatible with Django Rest Framework.
+
+To use the them in your API, simply register the viewsets in a router like so:
 
 .. code-block:: python
 
@@ -24,6 +25,9 @@ one writable endpoint to create responses.
 The API endpoints are hyperlinked together, i.e. they return URLs to other resources.
 It is recommended to follow these links instead of constructing your own URLs.
 
+Note that by default all the read-only endpoints are public.
+Only the create-response endpoint requires authentication.
+
 Prompt API
 ----------
 
@@ -42,6 +46,9 @@ Prompt API
 **Get an instance of a prompt within the context of a prompt set**::
 
     GET api/prompts/<prompt_id>/instantiate/<prompt_set_name>/
+
+When instantiating prompts like this, the instance will contain a `next_prompt_instance` field
+that links to the next prompt in the set (or null for the last prompt).
 
 Create Response API
 -------------------

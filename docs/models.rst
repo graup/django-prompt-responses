@@ -12,10 +12,10 @@ Prompt
     A Prompt is an abstract definition of a task or question that will be presented to a user
     in order to collect responses.
 
-    In order to present a Prompt to a user, it needs to be instantiated by calling :method:`get_instance()`.
+    In order to present a Prompt to a user, it needs to be instantiated by calling :func:`get_instance() <Prompt.get_instance>`.
 
     In its simplest form, a Prompt defines some `text` and a `type` for either free-form
-    or rating respones.
+    or rating responses.
 
     A more advanced version can be connected to any other type of object. When instantiated,
     these Prompts will be populated with one object chosen from the set of objects of the defined type.
@@ -35,27 +35,27 @@ Prompt
     .. attribute:: text
 
         The text to be displayed to the user. The string can use the `{object}` placeholder
-        which will be replace by the object the prompt is instantiated with.
+        which will be replaced by the object the prompt is instantiated with.
     
     .. attribute:: scale_min
 
-        For prompts with scale responsed, the minimum value of the scale. Defaults to 1
+        For prompts with rating responses, the minimum value of the scale. Defaults to 1
     
     .. attribute:: scale_max
     
-        For prompts with scale responsed, the maximum value of the scale.
+        For prompts with rating responses, the maximum value of the scale.
 
     .. attribute:: prompt_object_type
     
-        An object of class ContentType to define the model of objects this prompt will be populated with when instantiated.
+        An object of class `ContentType <https://docs.djangoproject.com/en/1.11/ref/contrib/contenttypes/>`_ to define the model of objects this prompt will be populated with when instantiated.
         One prompt instance will be populated with one object of this type.
         A response will contain a reference to this object.
 
     .. attribute:: response_object_type
     
-        An object of class ContentType to define the model of objects this prompt will be populated with when instantiated.
+        An object of class `ContentType <https://docs.djangoproject.com/en/1.11/ref/contrib/contenttypes/>`_  to define the model of objects this prompt will be populated with when instantiated.
         One prompt instance will be populated with a number of objects of this type.
-        A response will create :class:`Tag`s with references to these objects.
+        A response will create :class:`Tags <Tag>` with references to these objects.
 
     .. method:: get_instance()
 
@@ -89,9 +89,9 @@ Prompt
     
     .. method:: get_object()
 
-        Used to determine the object for instantiating this Prompt.
+        Used to determine the object for instantiating this prompt.
         The default implementation is to retrieve a random object from the queryset.
-        You can override this method to customize this.
+        You can override this method to customize this behavior.
         See :attr:`Prompt.prompt_object_type`.
 
     .. method:: get_queryset()
@@ -101,14 +101,14 @@ Prompt
 
     .. method:: get_response_objects()
 
-        Used to determine the objects for instantiating this Prompt.
-        The default implementation is to retrieve a random object from the queryset.
-        You can override this method to customize this.
+        Used to determine the objects for instantiating this prompt.
+        The default implementation is to retrieve a number of random objects from the queryset.
+        You can override this method to customize this behavior.
         See :attr:`Prompt.response_object_type`.
 
     .. method:: get_response_queryset()
 
-        The queryset from which the objects will be drawn when instantiating this Prompt.
+        The queryset from which the objects will be drawn when instantiating this prompt.
         The default implementation is to return all objects of type :attr:`Prompt.response_object_type`.
 
 Scales
@@ -164,6 +164,9 @@ Response
 
     .. attribute:: text
 
+        Textual response. This is a TEXT field in the database, so it can contain arbitrary length of texts.
+        If you need to save additional data, you can use this field to save JSON encoded data.
+
         :type: string
 
     .. attribute:: prompt_object
@@ -188,6 +191,10 @@ Tag
     Tags are contained in a :class:`Response`. You shouldn't need to create these objects
     yourself – rather, refer to :func:`Prompt.create_response()`.
 
+    .. attribute:: response
+
+        The :class:`Response` that this tag is related to. This is a required field.
+
     .. attribute:: response_object
 
         The object that this tag refers to. Should match the type
@@ -200,10 +207,6 @@ Tag
 
         :type: integer
 
-    .. attribute:: response
-
-        The :class:`Response` that this tag is related to. This is a required field.
-
 PromptSet
 =========
 
@@ -214,12 +217,12 @@ PromptSet
 
     .. attribute:: name
 
-        A name to identify this set. Should be in slug format.
+        A name to identify this set. Should be in slug format (alphanumerical and dashes).
 
     .. attribute:: prompts
 
         A many-to-many field to add any number of :class:`Prompts <Prompt>` to this set.
-        Prompts are orderable. If you use the Django admin and added `sortedm2m` to your `INSTALLED_APPS`,
-        the widget should allow drag and drop.
+        Prompts are orderable.
         See `django-sortedm2m's documentation <https://github.com/gregmuellegger/django-sortedm2m>`_ for details
-        about how this works.
+        about how this works. If added `sortedm2m` to your `INSTALLED_APPS`,
+        the Django admin widget should allow drag and drop.

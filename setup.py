@@ -56,7 +56,7 @@ setup(
         'prompt_responses',
     ],
     include_package_data=True,
-    install_requires=["django-model-utils>=2.0",],
+    install_requires=["django-model-utils>=2.0","django-sortedm2m>=1.5",],
     license="MIT",
     zip_safe=False,
     keywords='django-prompt-responses',

@@ -40,6 +40,7 @@ class Prompt(models.Model):
     scale_min = models.IntegerField(_('minimum value of likert scale'), default=1, blank=True)
     scale_max = models.IntegerField(_('maximum value of likert scale'), null=True, blank=True)
     text = models.TextField(_('text, format can contain {object}'), default="{object}")
+    name = models.SlugField(null=True, blank=True)
 
     prompt_object_type = models.ForeignKey(
         ContentType,

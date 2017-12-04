@@ -48,8 +48,9 @@ class ResponseForm(forms.ModelForm):
         
         # Set initial values based on prompt instance
         self.initial['prompt'] = prompt_instance.prompt
-        self.initial['content_type'] = ContentType.objects.get_for_model(prompt_instance.object)
-        self.initial['object_id'] = prompt_instance.object.pk
+        if prompt_instance.object:
+            self.initial['content_type'] = ContentType.objects.get_for_model(prompt_instance.object)
+            self.initial['object_id'] = prompt_instance.object.pk
 
 
 class TagForm(forms.ModelForm):

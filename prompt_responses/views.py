@@ -99,7 +99,7 @@ class BaseCreateResponseView(PromptInstanceMixin, SuccessMessageMixin, CreateVie
     def get_context_data(self, **kwargs):
         data = super(BaseCreateResponseView, self).get_context_data(**kwargs)
     
-        if self.prompt.reresponse_object_type:
+        if self.prompt.response_object_type:
             initial = []
             if self.prompt_instance.response_objects:
                 initial = [{

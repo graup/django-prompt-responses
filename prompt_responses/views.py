@@ -98,17 +98,21 @@ class BaseCreateResponseView(PromptInstanceMixin, SuccessMessageMixin, CreateVie
 
     def get_context_data(self, **kwargs):
         data = super(BaseCreateResponseView, self).get_context_data(**kwargs)
-        initial = []
-        if self.prompt_instance.response_objects:
-            initial = [{
-                'content_type': ContentType.objects.get_for_model(obj),
-                'object_id': obj.pk
-            } for obj in self.prompt_instance.response_objects]
-        if self.request.POST:
-            data['formset'] = ResponseTagsForm(self.request.POST, instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
-        else:
-            data['formset'] = ResponseTagsForm(instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
-        data['formset'].extra = len(initial)
+    
+        if self.prompt.reresponse_object_type:
+            initial = []
+            if self.prompt_instance.response_objects:
+                initial = [{
+                    'content_type': ContentType.objects.get_for_model(obj),
+                    'object_id': obj.pk
+                } for obj in self.prompt_instance.response_objects]
+                
+            if self.request.POST:
+                data['formset'] = ResponseTagsForm(self.request.POST, instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
+            else:
+                data['formset'] = ResponseTagsForm(instance=self.object, initial=initial, form_kwargs={'prompt_instance': self.prompt_instance})
+            data['formset'].extra = len(initial)
+
         return data
 
     def get_success_url(self):
@@ -121,12 +125,13 @@ class BaseCreateResponseView(PromptInstanceMixin, SuccessMessageMixin, CreateVie
     @transaction.atomic
     def form_valid(self, form):
         context = self.get_context_data()
-        formset = context['formset']
         form.instance.user = self.get_user()
         self.object = form.save()
-        if formset.is_valid():
-            formset.instance = self.object
-            formset.save()
+        formset = context.get('formset', None)
+        if formset:
+            if formset.is_valid():
+                formset.instance = self.object
+                formset.save()
 
         return super(BaseCreateResponseView, self).form_valid(form)
 

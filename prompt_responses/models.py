@@ -127,7 +127,7 @@ class Prompt(models.Model):
 
         try:
             self.formatted_text()
-        except KeyError, e:
+        except KeyError as e:
             msg = _(
                 'The prompt text includes an unsupported placeholder {{{key}}}. '
                 'If you want to use the literal text, use double braces like {{{{{key}}}}}'

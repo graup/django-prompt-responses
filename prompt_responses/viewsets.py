@@ -1,12 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
-from rest_framework.exceptions import NotAuthenticated
+from rest_framework.exceptions import NotAuthenticated, NotFound
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     PromptSerializer, PromptSetSerializer, PromptInstanceSerializer, ResponseSerializer
 )
 from .models import Prompt, PromptSet
+from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import ugettext_lazy as _
 
 
 class PromptSetViewSet(viewsets.ReadOnlyModelViewSet):
@@ -25,7 +27,15 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _instantiate(self, request, pk=None, promptset=None):
         prompt = self.get_object()
-        instance = prompt.get_instance(promptset=promptset)
+        try:
+            instance = prompt.get_instance(
+                promptset=promptset,
+                object_id=request.query_params.get('object_id', None)
+                response_object_ids=request.query_params.get('response_object_ids', None)
+            )
+        except ObjectDoesNotExist:
+            raise NotFound(_('The prompt object could not be found.'))
+    
         context = {'request': request}
         instance_serializer = PromptInstanceSerializer(instance, context=context)
         return Response(instance_serializer.data)

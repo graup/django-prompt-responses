@@ -200,6 +200,13 @@ class Prompt(models.Model):
         Get one object from the queryset to display in prompt.
         By default this samples one random object from the queryset."""
         queryset = self.get_queryset()
+        
+        # object_id can be passed in to manually force a specific object
+        # If not found, throws a ObjectDoesNotExist exception
+        pk = kwargs.get('object_id', None)
+        if pk:
+            return queryset.get(pk=pk)
+
         # Todo: make algorithm here plugable
         count = queryset.aggregate(count=Count('id'))['count']
         random_index = random.randint(0, count - 1)
@@ -212,6 +219,17 @@ class Prompt(models.Model):
         call get_instance with n=5 to choose other numbers.
         """
         queryset = self.get_response_queryset()
+
+        # response_object_ids can be passed in to manually force a specific object
+        # If nothing found, can have an empty result
+        # If parameter contained invalid data (non-numbers), just passes
+        pks = kwargs.get('response_object_ids', None)
+        if pks:
+            try:
+                return queryset.filter(pk__in=pks.split(','))
+            except ValueError:
+                pass
+
         # Todo: make algorithm here plugable
         count = queryset.aggregate(count=Count('id'))['count']
         sample = random.sample(range(0, count), min(n, count))

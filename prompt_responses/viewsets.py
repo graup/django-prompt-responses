@@ -45,7 +45,7 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
     def create_response(self, request, pk=None):
         """Create a response for a prompt. Request needs to be authenticated"""
         # This call needs to be authenticated as every request is assigned to a user
-        if not self.request.user or not self.request.user.is_authenticated():
+        if not self.request.user or not self.request.user.is_authenticated:
             raise NotAuthenticated()
 
         data = {}

@@ -390,7 +390,7 @@ class Response(models.Model):
         on_delete=models.CASCADE,
         related_name='responses'
     )
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     rating = models.IntegerField(_('rating response'), null=True, blank=True)
     text = models.TextField(_('text response'), null=True, blank=True)
 

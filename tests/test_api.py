@@ -16,9 +16,9 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
 
-from prompt_responses.models import Prompt
+from prompt_responses.models import Prompt, PromptSet
 from .models import Book, Category
-from prompt_responses.viewsets import PromptViewSet
+from prompt_responses.viewsets import PromptViewSet, PromptSetViewSet
 
 class TestPrompt_responses(TestCase):
 
@@ -31,6 +31,33 @@ class TestPrompt_responses(TestCase):
             text="How do you like the book {object}?",
             prompt_object_type=Book
         )
+
+    def test_prompt_set(self):        
+        prompt_set = PromptSet.objects.create(name='my-prompts')
+        prompt1 = Prompt.create(
+            text="Prompt number 1",
+        )
+        prompt2 = Prompt.create(
+            text="Prompt number 2",
+        )
+        prompt3 = Prompt.create(
+            text="Prompt number 3",
+        )
+        prompt_set.prompts.add(prompt1)
+        prompt_set.prompts.add(prompt3)
+        prompt_set.prompts.add(prompt2)
+        prompt_set.save()
+
+        request = self.api.get('')
+        view = PromptSetViewSet.as_view({'get': 'retrieve'})
+        response = view(request, name='my-prompts').render()
+        data = json.loads(response.content.decode('utf8'))
+        
+        self.assertEquals(data, {
+            'url': 'http://testserver/api/prompt-sets/my-prompts/',
+            'next_prompt_instance': 'http://testserver/api/prompts/2/instantiate/my-prompts/',
+            'ordered_prompts': ['http://testserver/api/prompts/2/', 'http://testserver/api/prompts/4/', 'http://testserver/api/prompts/3/']
+        })
 
     def test_get_prompt(self):
         request = self.api.get('')
@@ -86,7 +113,7 @@ class TestPrompt_responses(TestCase):
         self.assertEquals(201, response.status_code)
         self.assertEquals(prompt_instance.object.id, data['object_id'])
         self.assertEquals(1, data['rating'])
-
+        
     def test_create_tagging_response(self):
         view = PromptViewSet.as_view({'post': 'create_response'})
         

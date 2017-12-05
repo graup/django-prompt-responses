@@ -103,7 +103,7 @@ class ResponseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         prompt = validated_data.pop('prompt')
-        user = self.context['request'].user if self.context['request'].user.is_authenticated() else None
+        user = self.context['request'].user if self.context['request'].user.is_authenticated else None
         try:
             return prompt.create_response(user=user, **validated_data)
         except ValidationError as e:

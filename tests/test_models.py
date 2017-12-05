@@ -32,6 +32,7 @@ class TestPrompt_responses(TestCase):
         )
         prompt_set.prompts.add(prompt)
         prompt_set.save()
+        self.assertEqual(str(prompt_set), 'book_rating')
         instance = prompt.get_instance()
         self.assertEqual(str(instance), 'How do you like the book Two Scoops of Django?')
         self.assertEqual(str(prompt), 'How do you like the book {object}?')
@@ -88,6 +89,8 @@ class TestPrompt_responses(TestCase):
         )
         with self.assertRaises(ValidationError):
             prompt.clean_fields()
+        instance = prompt.get_instance()
+        self.assertEqual(str(instance), "How do you like the book {some_object}?")
 
     def test_object_less_prompt(self):
         # prompts without any object type should also work

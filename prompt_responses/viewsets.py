@@ -30,7 +30,7 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             instance = prompt.get_instance(
                 promptset=promptset,
-                object_id=request.query_params.get('object_id', None)
+                object_id=request.query_params.get('object_id', None),
                 response_object_ids=request.query_params.get('response_object_ids', None)
             )
         except ObjectDoesNotExist:

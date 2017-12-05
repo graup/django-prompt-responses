@@ -60,8 +60,14 @@ class Prompt(models.Model):
 
     tracker = FieldTracker()
 
-    def display_text(self, instance=None):
+    def formatted_text(self, instance=None):
         return self.text.format(object=instance)
+
+    def display_text(self, instance=None):
+        try:
+            return self.formatted_text(instance)
+        except KeyError, e:
+            return self.text
 
     def __str__(self):
         return self.text
@@ -118,6 +124,15 @@ class Prompt(models.Model):
                     'Please create a new prompt or delete this prompt\'s responses first.'
                 )
                 raise ValidationError({'type': msg})
+
+        try:
+            self.formatted_text()
+        except KeyError, e:
+            msg = _(
+                'The prompt text includes an unsupported placeholder {{{key}}}. '
+                'If you want to use the literal text, use double braces like {{{{{key}}}}}'
+            ).format(key=str(e).replace("'", ''))
+            raise ValidationError({'type': msg}) 
 
 
     @classmethod

@@ -79,7 +79,16 @@ class TestPrompt_responses(TestCase):
             response_object_type=ContentType.objects.get_for_model(Book)
         )
 
-        
+    def test_unsupported_placeholder(self):
+        prompt = models.Prompt.objects.create(
+            text="How do you like the book {some_object}?",
+            scale_min=1,
+            scale_max=5,
+            prompt_object_type=ContentType.objects.get_for_model(Book)
+        )
+        with self.assertRaises(ValidationError):
+            prompt.clean_fields()
+
     def test_object_less_prompt(self):
         # prompts without any object type should also work
         prompt = models.Prompt.create(

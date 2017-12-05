@@ -66,7 +66,7 @@ class Prompt(models.Model):
     def display_text(self, instance=None):
         try:
             return self.formatted_text(instance)
-        except KeyError, e:
+        except KeyError as e:
             return self.text
 
     def __str__(self):

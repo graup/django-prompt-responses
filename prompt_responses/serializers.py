@@ -32,20 +32,6 @@ class NextPromptInstanceHyperlink(serializers.HyperlinkedRelatedField):
         }
         return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
 
-class PromptSetSerializer(serializers.HyperlinkedModelSerializer):
-    next_prompt_instance = PromptSetPromptInstanceHyperlink(source="*", read_only=True)
-    ordered_prompts = serializers.HyperlinkedIdentityField(
-        view_name='prompt-detail', source="prompts", many=True, read_only=True
-    )
-
-    class Meta:
-        model = PromptSet
-        fields = ('url', 'ordered_prompts', 'next_prompt_instance', )
-        lookup_field = 'name'
-        extra_kwargs = {
-            'url': {'lookup_field': 'name'}
-        }
-
 class PromptSerializer(serializers.HyperlinkedModelSerializer):
     instance_url = serializers.HyperlinkedIdentityField(view_name='prompt-instantiate')
     prompt_object_type = serializers.CharField()
@@ -60,6 +46,21 @@ class PromptSerializer(serializers.HyperlinkedModelSerializer):
             'scale_min', 'scale_max', 'text',
             'prompt_object_type', 'response_object_type',
         )
+    
+class PromptSetSerializer(serializers.HyperlinkedModelSerializer):
+    next_prompt = PromptSerializer(source='first_prompt')
+    next_prompt_instance = PromptSetPromptInstanceHyperlink(source="*", read_only=True)
+    ordered_prompts = serializers.HyperlinkedIdentityField(
+        view_name='prompt-detail', source="prompts", many=True, read_only=True
+    )
+
+    class Meta:
+        model = PromptSet
+        fields = ('url', 'ordered_prompts', 'next_prompt', 'next_prompt_instance', )
+        lookup_field = 'name'
+        extra_kwargs = {
+            'url': {'lookup_field': 'name'}
+        }
 
 class GenericSerializer(serializers.Serializer):
     id = serializers.IntegerField()
@@ -74,6 +75,7 @@ class GenericSerializer(serializers.Serializer):
 
 class PromptInstanceSerializer(serializers.Serializer):
     next_prompt_instance = NextPromptInstanceHyperlink(source="*", read_only=True)
+    next_prompt = PromptSerializer()
     response_create_url = serializers.HyperlinkedRelatedField(
         view_name='prompt-create-response', source='prompt', read_only=True
     )

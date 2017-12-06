@@ -19,7 +19,7 @@ class TagInline(admin.TabularInline):
 
 
 class ResponseAdmin(admin.ModelAdmin):
-    list_display = ('created', 'user', 'rating', 'text', 'prompt_object')
+    list_display = ('created', 'user', 'rating', 'text', 'prompt_object', 'tags')
     raw_id_fields = ('user', )
     inlines = [TagInline]
 admin.site.register(models.Response, ResponseAdmin)

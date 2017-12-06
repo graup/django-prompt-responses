@@ -53,11 +53,10 @@ class TestPrompt_responses(TestCase):
         response = view(request, name='my-prompts').render()
         data = json.loads(response.content.decode('utf8'))
         
-        self.assertEquals(data, {
-            'url': 'http://testserver/api/prompt-sets/my-prompts/',
-            'next_prompt_instance': 'http://testserver/api/prompts/2/instantiate/my-prompts/',
-            'ordered_prompts': ['http://testserver/api/prompts/2/', 'http://testserver/api/prompts/4/', 'http://testserver/api/prompts/3/']
-        })
+        self.assertTrue('next_prompt' in data)
+        self.assertEquals(data['url'], 'http://testserver/api/prompt-sets/my-prompts/')
+        self.assertEquals(data['next_prompt_instance'], 'http://testserver/api/prompts/2/instantiate/my-prompts/')
+        self.assertEquals(data['ordered_prompts'], ['http://testserver/api/prompts/2/', 'http://testserver/api/prompts/4/', 'http://testserver/api/prompts/3/'])
 
     def test_get_prompt(self):
         request = self.api.get('')

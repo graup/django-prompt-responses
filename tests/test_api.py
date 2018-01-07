@@ -43,6 +43,9 @@ class TestPrompt_responses(TestCase):
         prompt3 = Prompt.create(
             text="Prompt number 3",
         )
+        prompt4 = Prompt.create(
+            text="Prompt number 4",
+        )
         prompt_set.prompts.add(prompt1)
         prompt_set.prompts.add(prompt3)
         prompt_set.prompts.add(prompt2)
@@ -57,7 +60,18 @@ class TestPrompt_responses(TestCase):
         self.assertEquals(data['url'], 'http://testserver/api/prompt-sets/my-prompts/')
         self.assertEquals(data['next_prompt_instance'], 'http://testserver/api/prompts/2/instantiate/my-prompts/')
         self.assertEquals(data['ordered_prompts'], ['http://testserver/api/prompts/2/', 'http://testserver/api/prompts/4/', 'http://testserver/api/prompts/3/'])
+        
+        prompt_set2 = PromptSet.objects.create(name='my-other-prompts')
+        prompt_set2.prompts.add(prompt3)
+        prompt_set2.prompts.add(prompt4)
+        prompt_set2.save()
 
+        view = PromptViewSet.as_view({'get': 'instantiate_from_set'})
+        response = view(request, pk=prompt3.pk, promptset_name='my-other-prompts').render()
+        data = json.loads(response.content.decode('utf8'))
+        # prompt3 called within prompt_set2 context should point to prompt4 as next_prompt
+        self.assertEquals(data['next_prompt_instance'], 'http://testserver/api/prompts/%d/instantiate/my-other-prompts/' % prompt4.pk)
+        
     def test_get_prompt(self):
         request = self.api.get('')
         view = PromptViewSet.as_view({'get': 'retrieve'})

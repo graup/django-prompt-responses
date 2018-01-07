@@ -175,13 +175,17 @@ class Prompt(models.Model):
                 return None
 
             # Grab the current prompt's sort_value from the through table
-            current_sort_value = self.promptset.prompts.through.objects.extra(
+            current_sort_value = self.promptset.prompts.through.objects.filter(
+                promptset=self.promptset.pk
+            ).extra(
                 select={'sort_value': 'sort_value'}
             ).values('sort_value').filter(prompt_id=self.prompt.pk)
 
             try:
                 # Get the prompt with a sort_value > current prompt's sort_value
-                prompt_id = self.promptset.prompts.through.objects.filter(sort_value__gt=current_sort_value).values('prompt_id')[0]['prompt_id']
+                prompt_id = self.promptset.prompts.through.objects.filter(
+                    promptset=self.promptset.pk, sort_value__gt=current_sort_value
+                ).values('prompt_id')[0]['prompt_id']
             except IndexError:
                 return None
             

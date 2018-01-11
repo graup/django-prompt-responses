@@ -28,6 +28,148 @@ class PromptSet(models.Model):
     def __str__(self):
         return self.name
 
+    def get_prompt_statistics(self, subset=None, user_id=None, user_unique=True, object_ids=None, response_object_ids=None):
+        """
+        Get statistics for each prompt in this promptset.
+        If prompts refer to objects, this should be passed
+        comma-separated lists of object_ids and/or response_object_ids,
+        otherwise this attempts to calculate the full matrix
+        of all objects and response_objects, which may take a long time (esp. for tagging prompts).
+        Supports multiple subsets (all users, a specific user (pass user_id), or another strategy (pass subset)).
+        Note that this contains some possibly meaningless values, like the mean of all tagging responses.
+        """
+
+        "Means for all tagging prompts"
+        # SELECT AVG(tags__rating) WHERE prompt_id=... GROUP BY prompt_object, response_object
+        qs = Tag.objects.filter(response__prompt__promptset=self.pk)
+        if object_ids:
+            try:
+                qs = qs.filter(response__object_id__in=object_ids.split(','))
+            except ValueError:
+                pass
+        if response_object_ids:
+            try:
+                qs = qs.filter(object_id__in=response_object_ids.split(','))
+            except ValueError:
+                pass
+        if user_id:
+            qs = qs.filter(response__user_id=user_id)
+        if user_unique:
+            # Select most recent response for each user
+            latest_ratings = qs.order_by().values('response__user_id').annotate(
+                max_id=Max('response__id')
+            ).values('max_id')
+            qs = qs.filter(response__pk__in=latest_ratings)
+
+        q = qs.values(
+            'response__prompt',
+            'response__content_type', 'response__object_id', 
+            'content_type', 'object_id'
+        ).annotate(
+            mean_rating=Avg('rating'),
+            tag_count=Count('id'),
+            response_count=Count('response__id', distinct=True)
+        )
+        # Convert rows into matrix
+        tag_matrix = defaultdict(lambda: defaultdict(dict))
+        for row in q.all():
+            d = {'mean': row['mean_rating'], 'count': row['tag_count'], 'response_count': row['response_count']}
+            tag_matrix[row['response__prompt']][row['response__object_id']][row['object_id']] = d
+
+        "Means for non-tagging prompts"
+        qs = Response.objects.filter(
+            prompt__promptset=self.pk,
+        ).exclude(
+            rating__isnull=True,
+            prompt__type=Prompt.TYPES.tagging
+        )
+        if object_ids:
+            try:
+                qs = qs.filter(object_id__in=object_ids.split(','))
+            except ValueError:
+                pass
+        if user_id:
+            qs = qs.filter(user__id=user_id)
+        if user_unique:
+            # Select most recent response for each user
+            latest_ratings = qs.order_by().values('user_id').annotate(
+                max_id=Max('id')
+            ).values('max_id')
+            qs = qs.filter(pk__in=latest_ratings)
+        q = qs.values(
+            'prompt', 'content_type', 'object_id'
+        ).annotate(mean_rating=Avg('rating'), response_count=Count('id'))
+         # Convert rows into matrix
+        response_matrix = defaultdict(dict)
+        for row in q.all():
+            d = {'mean': row['mean_rating'], 'count': row['response_count']}
+            response_matrix[row['prompt']][row['object_id']] = d
+
+        "Convert matrices into lists of ordered prompts"
+        l = []
+        for prompt_id in self.prompts.values_list('id', flat=True):
+            objects = []
+            prompt = {"prompt_id": prompt_id, 'mean_rating': None, 'response_count': 0, 'objects': []}
+            if prompt_id in tag_matrix:   
+                prompt_total = {'mean': 0, 'count': 0, 'tag_count': 0} 
+                for object_id in tag_matrix[prompt_id]:
+                    response_objects = []
+                    object_total = {'mean': 0, 'count': 0, 'tag_count': 0}
+                    for response_object_id in tag_matrix[prompt_id][object_id]:
+                        rating = tag_matrix[prompt_id][object_id][response_object_id]
+                        response_objects.append({
+                            "response_object_id": response_object_id,
+                            "mean_rating": rating['mean'],
+                            "tag_count": rating['count'],
+                            "response_count": rating['response_count']
+                        })
+                        object_total['tag_count'] += rating['count']
+                        object_total['mean'] += rating['mean']*rating['count']
+                    count_query = Response.objects.filter(prompt_id=prompt_id, object_id=object_id)
+                    if user_id:
+                        count_query = qs.filter(user__id=user_id)
+                    if user_unique:
+                        # Select most recent ratings for each user
+                        latest_ratings = count_query.order_by().values('user_id').annotate(
+                            max_id=Max('id')
+                        ).values('max_id')
+                        count_query = count_query.filter(pk__in=latest_ratings)
+                    object_total['count'] = count_query.values('object_id').annotate(count=Count('id')).all()[0]['count']
+                    object_total['mean'] /= object_total['tag_count']
+                    prompt_total['tag_count'] += object_total['tag_count']
+                    prompt_total['count'] += object_total['count']
+                    prompt_total['mean'] += object_total['mean']*object_total['tag_count']
+                    objects.append({
+                        'object_id': object_id,
+                        'response_objects': response_objects,
+                        'mean_rating': object_total['mean'],
+                        'tag_count': object_total['tag_count'],
+                        'response_count': object_total['count']
+                    })
+                prompt_total['mean'] /= prompt_total['tag_count']
+                prompt['tag_count'] = prompt_total['tag_count']
+                prompt['response_count'] = prompt_total['count']
+                prompt['mean_rating'] = prompt_total['mean']
+                prompt["objects"] = objects
+            if prompt_id in response_matrix: 
+                prompt_total = {'mean': 0, 'count': 0} 
+                for object_id in response_matrix[prompt_id]:
+                    rating = response_matrix[prompt_id][object_id]
+                    objects.append({
+                        'object_id': object_id,
+                        'mean_rating': rating['mean'],
+                        "response_count": rating['count']
+                    })
+                    prompt_total['count'] += rating['count']
+                    prompt_total['mean'] += rating['mean']*rating['count']
+                prompt_total['mean'] /= prompt_total['count']
+                prompt['response_count'] = prompt_total['count']
+                prompt['mean_rating'] = prompt_total['mean']
+            prompt['objects'] = objects
+            l.append(prompt)
+
+        return l
+
 
 class Prompt(models.Model):
     TYPES = Choices(
@@ -40,6 +182,7 @@ class Prompt(models.Model):
     scale_min = models.IntegerField(_('minimum value of likert scale'), default=1, blank=True)
     scale_max = models.IntegerField(_('maximum value of likert scale'), null=True, blank=True)
     text = models.TextField(_('text, format can contain {object}'), default="{object}")
+    label = models.CharField(_('short label'), max_length=50, null=True, blank=True)
     name = models.SlugField(null=True, blank=True, unique=True)
 
     prompt_object_type = models.ForeignKey(
@@ -454,3 +597,4 @@ class Tag(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     response_object = GenericForeignKey('content_type', 'object_id')
+

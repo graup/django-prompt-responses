@@ -18,6 +18,43 @@ class PromptSetViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = []
     lookup_field = 'name'
 
+    @detail_route(methods=['get'], url_name='statistics')
+    def statistics(self, request, name=None):
+        """
+        Get statistics for each prompt in this promptset.
+        See PromptSet.get_prompt_statistics for details.
+        """
+        promptset = self.get_object()
+        context = {'request': request}
+        series = []
+        # get overall stats
+        series.append({
+            'name': 'all',
+            'label': _('all'),
+            'prompt_data': promptset.get_prompt_statistics(
+                subset=None,
+                object_ids=request.query_params.get('object_ids', None),
+                response_object_ids=request.query_params.get('response_object_ids', None)
+            ),
+        })
+        # get stats for one user
+        if self.request.user.is_authenticated:
+            series.append({
+                'name': 'current_user',
+                'label': _('me'),
+                'prompt_data': promptset.get_prompt_statistics(
+                    subset=None,
+                    user_id=self.request.user.id,
+                    object_ids=request.query_params.get('object_ids', None),
+                    response_object_ids=request.query_params.get('response_object_ids', None)
+                ),
+            })
+        data = {
+            'ordered_prompts': PromptSerializer(promptset.prompts.all(), many=True, context=context).data,
+            'series': series
+        }
+        return Response(data)
+
 
 class PromptViewSet(viewsets.ReadOnlyModelViewSet):
     "API for Prompts. Read-only except create-response"
@@ -54,7 +91,7 @@ class PromptViewSet(viewsets.ReadOnlyModelViewSet):
     @detail_route(methods=['post'], url_path='create-response', permission_classes=[])
     def create_response(self, request, pk=None):
         """Create a response for a prompt. Request needs to be authenticated"""
-        # This call needs to be authenticated as every request is assigned to a user
+        # This request needs to be authenticated as every response is assigned to a user
         if not self.request.user or not self.request.user.is_authenticated:
             raise NotAuthenticated()
 

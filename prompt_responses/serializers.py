@@ -41,6 +41,7 @@ class PromptSerializer(serializers.HyperlinkedModelSerializer):
         model = Prompt
         fields = (
             'url',
+            'id',
             'instance_url',
             'type',
             'scale_min', 'scale_max', 'text',
@@ -49,6 +50,7 @@ class PromptSerializer(serializers.HyperlinkedModelSerializer):
     
 class PromptSetSerializer(serializers.HyperlinkedModelSerializer):
     next_prompt = PromptSerializer(source='first_prompt')
+    statistics = serializers.HyperlinkedIdentityField(view_name='promptset-statistics', lookup_field='name', )
     next_prompt_instance = PromptSetPromptInstanceHyperlink(source="*", read_only=True)
     ordered_prompts = serializers.HyperlinkedIdentityField(
         view_name='prompt-detail', source="prompts", many=True, read_only=True
@@ -56,7 +58,7 @@ class PromptSetSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = PromptSet
-        fields = ('url', 'ordered_prompts', 'next_prompt', 'next_prompt_instance', )
+        fields = ('url', 'ordered_prompts', 'next_prompt', 'statistics', 'next_prompt_instance', )
         lookup_field = 'name'
         extra_kwargs = {
             'url': {'lookup_field': 'name'}

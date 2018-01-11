@@ -44,7 +44,7 @@ class PromptSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'instance_url',
             'type',
-            'scale_min', 'scale_max', 'text',
+            'scale_min', 'scale_max', 'text', 'label', 'name',
             'prompt_object_type', 'response_object_type',
         )
     

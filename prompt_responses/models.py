@@ -56,7 +56,11 @@ class PromptSet(models.Model):
             qs = qs.filter(response__user_id=user_id)
         if user_unique:
             # Select most recent response for each user
-            latest_ratings = qs.order_by().values('response__user_id').annotate(
+            latest_ratings = qs.order_by().values(
+                'response__prompt',
+                'response__content_type', 'response__object_id', 
+                'content_type', 'object_id', 'response__user_id'
+            ).annotate(
                 max_id=Max('response__id')
             ).values('max_id')
             qs = qs.filter(response__pk__in=latest_ratings)
@@ -92,7 +96,7 @@ class PromptSet(models.Model):
             qs = qs.filter(user__id=user_id)
         if user_unique:
             # Select most recent response for each user
-            latest_ratings = qs.order_by().values('user_id').annotate(
+            latest_ratings = qs.order_by().values('prompt', 'content_type', 'object_id', 'user_id').annotate(
                 max_id=Max('id')
             ).values('max_id')
             qs = qs.filter(pk__in=latest_ratings)
@@ -101,6 +105,7 @@ class PromptSet(models.Model):
         ).annotate(mean_rating=Avg('rating'), response_count=Count('id'))
          # Convert rows into matrix
         response_matrix = defaultdict(dict)
+        print(q.query)
         for row in q.all():
             d = {'mean': row['mean_rating'], 'count': row['response_count']}
             response_matrix[row['prompt']][row['object_id']] = d
